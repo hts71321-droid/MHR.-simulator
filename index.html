@@ -410,6 +410,14 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
             <option value="3">スロ3以上を持つ</option>
           </select></div>
         </div>
+        <div class="slot-row">
+          <label>防具の限界突破</label>
+          <select id="limitSel">
+            <option value="0">していない状態で計算する</option>
+            <option value="1">限界突破ずみとして計算する</option>
+          </select>
+          <p class="hint">限界突破するとスロットが大きくなります。レア5は3枠すべてが1段階、レア6は左2枠だけが1段階アップします。レア7・8は変わりません。</p>
+        </div>
         <div id="equipSlots"></div>
       </div>
       <div class="panel" id="artianGrant" hidden>
@@ -3208,6 +3216,40 @@ const DATA = {
   ]
 };
 
+/* =====================================================================
+   データセットに載っていない分の手当て
+   ---------------------------------------------------------------------
+   tools/build-data.js で DATA を作り直しても、ここは消えません。
+   取り込み元（mhdb-wilds-data）に無いものだけを、ここに書きます。
+   ===================================================================== */
+const DATA_PATCH = {
+  /* --- 限界突破したときのスロット変化 ---
+     数字は「その枠が何段階大きくなるか」。上限は3です。
+     　レア5 … 3枠すべてが1段階アップ（枠が無いところは①になる）
+     　レア6 … 左の2枠だけ1段階アップ。3枠目は増えません
+     　レア7/8 … 限界突破によるスロット変化なし
+     出典：GameWith の防具一覧を作者が確認。上位（レア5以上）の実例42件で照合し、
+     41件が一致しました。合わなかったのは「チェーンヘッドα」の1件だけですが、
+     同じ ①①ー の防具が他に8件あっていずれも ②②① なので、出典側の誤記とみています。
+     下位（レア4以下）は確認できていないので入れていません。 */
+  limitSlot:{5:[1,1,1], 6:[1,1,0]},
+
+  /* --- シリーズスキルの2つ目 ---
+     ゴグ防具は「巨戟龍の黙示録」に加えて、部位ごとにもう1つシリーズスキルが付きます。
+     取り込み元のデータは1部位につき1つしか持っていないので、2つ目をここで足しています。 */
+  series2:{
+    "ゴグヘルムα":"白熾龍の脈動",   "ゴグメイルα":"暗器蛸の力",   "ゴグアームα":"雷顎竜の闘志",
+    "ゴグコイルα":"兇爪竜の力",     "ゴググリーヴα":"闢獣の力",
+    "ゴグヘルムβ":"護鎖刃竜の命脈", "ゴグメイルβ":"火竜の力",     "ゴグアームβ":"雪獅子の闘志",
+    "ゴグコイルβ":"泡狐竜の力",     "ゴググリーヴβ":"鎧竜の守護"
+  }
+};
+/* 2つ目のシリーズスキルを防具データに流し込む */
+["head","body","arms","waist","legs"].forEach(k=>DATA.armors[k].forEach(a=>{
+  const s2=DATA_PATCH.series2[a.name];
+  if(s2)a.series2=s2;
+}));
+
 /* ===================== 道具 ===================== */
 const $=s=>document.querySelector(s);
 const el=(t,a={},...k)=>{const n=document.createElement(t);
@@ -3399,14 +3441,34 @@ const itemOf=pk=>{
   return p.list().find(x=>x.name===build[pk].name)||null;
 };
 const rareTag=x=>x.rare?"（R"+x.rare+"）":"";
-const slotTag=x=>(x.slots&&x.slots.length)?" ["+x.slots.join("")+"]":"";
+
+/* 限界突破したときのスロット。変わらないものは null を返します。
+   防具だけの仕組みなので、武器・護石には使いません。 */
+function limitSlots(item){
+  const add=DATA_PATCH.limitSlot[item&&item.rare];
+  if(!add)return null;
+  const base=item.slots||[];
+  const out=[0,1,2].map(i=>Math.min(3,(base[i]||0)+add[i])).filter(n=>n>0);
+  return JSON.stringify(out)===JSON.stringify(base)?null:out;
+}
+let limitOn=false;   /* 限界突破ずみとして計算するか */
+/* いま計算に使うスロット */
+function effSlots(item,pk){
+  if(!item)return [];
+  if(limitOn&&SLOT_LABEL[pk]){ const l=limitSlots(item); if(l)return l; }
+  return item.slots||[];
+}
+const slotTag=(x,pk)=>{
+  const s=effSlots(x,pk);
+  return s.length?" ["+s.join("")+"]":"";
+};
 const optLabel=(x,pk)=>
-  ((pk==="weapon"&&x.type&&x.name!==ARTIAN_LIVE)?x.type+"／":"")+x.name+rareTag(x)+slotTag(x);
+  ((pk==="weapon"&&x.type&&x.name!==ARTIAN_LIVE)?x.type+"／":"")+x.name+rareTag(x)+slotTag(x,pk);
 /* 名前・スキル名・シリーズ名・グループ名のどれかに当たれば表示 */
 function equipHit(x,q,pk){
-  if(q && !(x.name+" "+(x.series||"")+" "+(x.group||"")+" "+(x.type||"")+" "+Object.keys(x.skills||{}).join(" "))
-      .toLowerCase().includes(q)) return false;
-  if(equipSlot && maxSlot(x)<equipSlot) return false;
+  if(q && !(x.name+" "+(x.series||"")+" "+(x.series2||"")+" "+(x.group||"")+" "+(x.type||"")+" "
+      +Object.keys(x.skills||{}).join(" ")).toLowerCase().includes(q)) return false;
+  if(equipSlot && maxSlot({slots:effSlots(x,pk)})<equipSlot) return false;
   if(pk==="weapon" && equipType && x.type!==equipType && x.name!==ARTIAN_LIVE) return false;
   return true;
 }
@@ -3429,9 +3491,10 @@ function buildEquipUI(){
     row.appendChild(sel);
     const deco=el("div",{class:"decos"}); row.appendChild(deco);
     const item=itemOf(p.key);
-    if(item&&item.slots&&item.slots.length){
+    const slots=effSlots(item,p.key);
+    if(item&&slots.length){
       const pool=decoPool(p.key);
-      item.slots.forEach((size,si)=>{
+      slots.forEach((size,si)=>{
         const ds=el("select"), usable=pool.filter(d=>d.size<=size);
         ds.appendChild(el("option",{value:""},"空きスロ["+size+"]"));
         usable.forEach(d=>ds.appendChild(el("option",{value:d.name},d.name)));
@@ -3441,8 +3504,20 @@ function buildEquipUI(){
         deco.appendChild(ds);
       });
     }
-    /* 同じ防具の α / β / γ を並べます。スロットが変わるのはここです。
-       （防具強化＝限界突破では防御力しか変わりません） */
+    /* 限界突破でスロットが変わるなら、その差を出します */
+    if(item&&SLOT_LABEL[p.key]){
+      const lim=limitSlots(item);
+      if(lim){
+        row.appendChild(el("p",{class:"hint"},
+          limitOn ? "限界突破ずみで計算中：" + (item.slots||[]).join("・") + " → " + lim.join("・")
+                  : "限界突破すると "+((item.slots||[]).join("・")||"スロットなし")+" → "+lim.join("・")+" になります"));
+      }
+    }
+    /* 2つ目のシリーズスキル（ゴグ防具） */
+    if(item&&item.series2){
+      row.appendChild(el("p",{class:"hint"},"シリーズスキルは2つ："+item.series+"／"+item.series2));
+    }
+    /* 同じ防具の α / β / γ を並べます */
     if(item&&SLOT_LABEL[p.key]){
       const others=((DATA.variants||{})[item.name]||[])
         .map(nm=>all.find(x=>x.name===nm)).filter(Boolean);
@@ -3471,9 +3546,9 @@ function buildEquipUI(){
 }
 function currentDecos(pk){
   const item=itemOf(pk);
-  if(!item||!item.slots)return [];
+  if(!item)return [];
   const pool=decoPool(pk);
-  return item.slots.map((size,si)=>{
+  return effSlots(item,pk).map((size,si)=>{
     const nm=build[pk].decos[si]; if(!nm)return null;
     const d=pool.find(x=>x.name===nm);
     return (d&&d.size<=size)?d:null;
@@ -3488,6 +3563,7 @@ function recalc(){
     if(item.def)def+=item.def;
     defMax += item.defMax || item.def || 0;
     if(item.series)sc[item.series]=(sc[item.series]||0)+1;
+    if(item.series2)sc[item.series2]=(sc[item.series2]||0)+1;   /* ゴグ防具は2つ付きます */
     if(item.group)gc[item.group]=(gc[item.group]||0)+1;
   });
   const w=itemOf("weapon");
@@ -3563,6 +3639,12 @@ function initEquipFilters(){
   ts.onchange=()=>{ equipType=ts.value; buildEquipUI(); };
   $("#equipSlotSel").value=String(equipSlot);
   $("#equipSlotSel").onchange=e=>{ equipSlot=+e.target.value; buildEquipUI(); };
+  $("#limitSel").value=limitOn?"1":"0";
+  $("#limitSel").onchange=e=>{
+    limitOn=e.target.value==="1";
+    /* スロットが小さくなる方向に切り替えたとき、入らなくなった装飾品は外れます */
+    buildEquipUI(); recalc(); drawRev(); saveLocal();
+  };
 }
 
 /* =====================================================================
@@ -3613,13 +3695,20 @@ function drawRev(){
   const t=el("table");
   t.appendChild(el("tr",{},["Lv","種別","名前","スロット","他のスキル",""].map(h=>el("th",{},h))));
   rows.slice(0,200).forEach(r=>{
-    const other=Object.keys(r.x.skills||{}).filter(n=>n!==sk)
-      .map(n=>n+"+"+r.x.skills[n]).join("・")||"—";
+    const other=(Object.keys(r.x.skills||{}).filter(n=>n!==sk)
+      .map(n=>n+"+"+r.x.skills[n]).join("・")||"—")
+      +(r.x.series2?"（シリーズ2つ）":"");
     const cells=[
       el("td",{class:"mono"},"Lv"+r.lv),
       el("td",{},r.kind+(r.part?"／"+SLOT_LABEL[r.part]:"")),
       el("td",{},r.x.name+((r.x.rare)?"（R"+r.x.rare+"）":"")),
-      el("td",{class:"mono"},(r.x.slots&&r.x.slots.length)?r.x.slots.join("・"):"—"),
+      el("td",{class:"mono"},(()=>{
+        const base=(r.x.slots&&r.x.slots.length)?r.x.slots.join("・"):"—";
+        if(!r.part)return base;
+        const lim=limitSlots(r.x);
+        if(!lim)return base;
+        return limitOn ? lim.join("・") : base+" →"+lim.join("・");
+      })()),
       el("td",{},other)
     ];
     /* 押すとその場で着けられるもの（防具・護石・武器）だけボタンを出します */
@@ -4073,7 +4162,7 @@ const readJSON=(k,fb)=>{ try{ const r=localStorage.getItem(k); return r?JSON.par
 const writeJSON=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return false; } };
 
 /* 今の画面の状態をひとまとめにする */
-function snapshot(){ return {futures, want, picked:fut.picked, records, build, grant, boosts, bwant}; }
+function snapshot(){ return {futures, want, picked:fut.picked, records, build, grant, boosts, bwant, limitOn}; }
 
 /* 保存されていた状態を画面の変数に戻す（足りない項目は初期値で埋める） */
 function restore(d){
@@ -4095,6 +4184,7 @@ function restore(d){
   }
   grant={series:"",group:""};
   if(d.grant)Object.assign(grant,d.grant);
+  limitOn = d.limitOn===true;
   boosts = (d.boosts&&typeof d.boosts==="object"&&!Array.isArray(d.boosts)) ? d.boosts : {};
   bwant  = (d.bwant &&typeof d.bwant ==="object"&&!Array.isArray(d.bwant))  ? d.bwant  : {};
 }
@@ -4136,7 +4226,7 @@ function redrawAll(){
   $("#tOnly").value=want.only?"1":"0";
   refreshChips();
   fut.rows=30; drawFut();
-  buildEquipUI(); initGrant(); recalc(); drawRev();
+  initEquipFilters(); buildEquipUI(); initGrant(); recalc(); drawRev();
 }
 
 function drawProfileBar(){
