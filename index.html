@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>狩猟装備台帳 — MHWilds</title>
+<style>
+:root{
+  --ink:#14120D; --iron:#221E17; --iron-hi:#2E2920;
+  --sand:#D9CDB4; --sand-dim:#9A9080;
+  --patina:#5C8A93; --ember:#D9A038; --rust:#A8422E; --line:#3A342A;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;
+  --gothic:"Hiragino Sans","Yu Gothic UI","Yu Gothic","Noto Sans JP",sans-serif;
+  --mono:"SFMono-Regular",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--ink);color:var(--sand);font-family:var(--gothic);font-size:15px;line-height:1.7;-webkit-text-size-adjust:100%}
+header{border-bottom:1px solid var(--line);padding:18px 20px 14px;display:flex;flex-wrap:wrap;align-items:baseline;gap:14px}
+header h1{font-family:var(--mincho);font-size:22px;font-weight:600;letter-spacing:.28em;margin:0}
+header .sub{font-size:11px;letter-spacing:.18em;color:var(--sand-dim);font-family:var(--mono)}
+nav.tabs{display:flex;border-bottom:1px solid var(--line);background:var(--iron)}
+nav.tabs button{flex:1;appearance:none;background:none;border:none;border-bottom:2px solid transparent;color:var(--sand-dim);font-family:var(--mincho);font-size:15px;letter-spacing:.2em;padding:13px 4px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{color:var(--sand);border-bottom-color:var(--ember)}
+nav.tabs button:focus-visible{outline:2px solid var(--patina);outline-offset:-2px}
+main{padding:20px;max-width:1180px;margin:0 auto}
+.cols{display:grid;grid-template-columns:1fr;gap:22px}
+@media(min-width:900px){.cols{grid-template-columns:1.05fr 1fr;align-items:start}.col-result{position:sticky;top:16px}}
+.panel{background:var(--iron);border:1px solid var(--line);padding:16px 16px 18px;margin-bottom:16px}
+.panel>h2{font-family:var(--mincho);font-size:13px;letter-spacing:.24em;color:var(--sand-dim);margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line);font-weight:500}
+.slot-row{margin-bottom:14px}
+.slot-row>label{display:block;font-size:11px;letter-spacing:.16em;color:var(--sand-dim);margin-bottom:4px}
+select,input[type=text],input[type=number]{width:100%;background:var(--ink);color:var(--sand);border:1px solid var(--line);border-radius:0;padding:8px 9px;font-family:var(--gothic);font-size:14px}
+select:focus,input:focus{outline:2px solid var(--patina);outline-offset:-2px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.decos{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.decos select{flex:1 1 150px;width:auto;font-size:12px;padding:5px 6px;background:var(--iron-hi)}
+.skill{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(58,52,42,.6)}
+.skill .nm{flex:1;font-size:14px;cursor:pointer;text-align:left;background:none;border:none;color:inherit;font-family:inherit;padding:0}
+.skill .nm:hover{color:var(--ember)}
+.pips{display:flex;gap:3px}
+.pip{width:12px;height:16px;border:1px solid var(--line);background:transparent}
+.pip.on{background:var(--ember);border-color:var(--ember)}
+.pip.over{background:var(--rust);border-color:var(--rust)}
+.lv{font-family:var(--mono);font-size:12px;color:var(--sand-dim);min-width:34px;text-align:right}
+.desc{font-size:12px;color:var(--sand-dim);padding:0 0 8px 2px;border-bottom:1px solid rgba(58,52,42,.6)}
+.set{margin-bottom:12px}
+.set .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.set .nm2{font-family:var(--mincho);font-size:14px;letter-spacing:.08em}
+.set .cnt{font-family:var(--mono);font-size:11px;color:var(--sand-dim)}
+.meter{display:flex;gap:3px;margin:5px 0 6px}
+.seg{height:5px;flex:1;background:var(--line)}
+.seg.fill{background:var(--patina)}
+.effect{font-size:12px;color:var(--sand-dim);padding-left:10px;border-left:2px solid var(--line)}
+.effect.active{color:var(--sand);border-left-color:var(--ember)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 14px;font-family:var(--mono);font-size:13px}
+.stats div{display:flex;justify-content:space-between;border-bottom:1px dotted var(--line);padding-bottom:3px}
+.stats span{color:var(--sand-dim);font-family:var(--gothic);font-size:12px}
+.big{color:var(--ember);font-size:15px}
+button.act{appearance:none;background:transparent;color:var(--sand);border:1px solid var(--patina);padding:8px 14px;font-family:var(--gothic);font-size:13px;letter-spacing:.1em;cursor:pointer}
+button.act:hover{background:rgba(92,138,147,.16)}
+button.act.warn2{border-color:var(--rust);color:#D89A88}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+th,td{border:1px solid var(--line);padding:5px 7px;text-align:left;vertical-align:top}
+th{background:var(--iron-hi);font-weight:500;color:var(--sand-dim);font-size:11px;letter-spacing:.1em;white-space:nowrap}
+td.mono{font-family:var(--mono);white-space:nowrap}
+tr.hit td{background:rgba(217,160,56,.12)}
+.scroll{overflow-x:auto}
+.empty{color:var(--sand-dim);font-size:13px;padding:12px 2px}
+.roll{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:center;margin-bottom:6px}
+.roll .n{font-family:var(--mono);font-size:11px;color:var(--sand-dim)}
+/* テーブル札：署名要素 */
+.tablecard{border:1px solid var(--ember);background:linear-gradient(180deg,rgba(217,160,56,.10),transparent);padding:12px 14px;margin-bottom:14px}
+.tablecard .lbl{font-size:10px;letter-spacing:.26em;color:var(--sand-dim);font-family:var(--mono)}
+.tablecard .val{font-family:var(--mincho);font-size:26px;letter-spacing:.1em;color:var(--ember);line-height:1.3}
+.tablecard .sub2{font-size:12px;color:var(--sand-dim);margin-top:4px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.chip{font-size:11px;border:1px solid var(--line);padding:2px 7px;color:var(--sand-dim);font-family:var(--mono)}
+.chip.on{border-color:var(--patina);color:var(--sand)}
+.cap{font-family:var(--mono);font-size:11px;color:var(--sand-dim);margin-left:6px}
+.cap.bad{color:#D89A88}
+.hint{font-size:12px;color:var(--sand-dim);margin:8px 0 0}
+/* 横並び未来視グリッド */
+.gridwrap table{font-size:11px;margin-top:0}
+.gridwrap th,.gridwrap td{padding:2px 4px;text-align:center;white-space:nowrap}
+.gridwrap th.elem{font-family:var(--mincho);letter-spacing:.06em;color:var(--sand)}
+.gridwrap th.tbl{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ember);background:rgba(217,160,56,.10)}
+.gridwrap td.n,.gridwrap th.n{position:sticky;left:0;z-index:2;background:var(--iron-hi);font-family:var(--mono);color:var(--sand-dim);min-width:30px}
+.gridwrap select.cell{width:88px;padding:2px 3px;font-size:11px;border-color:transparent;background:transparent;color:var(--sand-dim);text-align:center}
+.gridwrap select.cell:hover{border-color:var(--line)}
+.gridwrap select.cell.filled{background:rgba(217,160,56,.14);border-color:rgba(217,160,56,.4);color:var(--sand)}
+.gridwrap select.cell.match{background:rgba(92,138,147,.4);border-color:var(--patina);color:#fff}
+.gridwrap select.cell.win{background:rgba(217,160,56,.55);border-color:var(--ember);color:var(--ink);font-weight:700}
+.gridwrap td.sep{border-left:1px solid var(--patina)}
+.gridwrap th.sep{border-left:1px solid var(--patina)}
+.gridwrap th.typesep,.gridwrap td.typesep{border-left:3px double var(--ember)}
+.gridwrap th.wtype{font-family:var(--mincho);font-size:13px;letter-spacing:.2em;color:var(--sand);background:var(--iron-hi)}
+.chip.pick{cursor:pointer;user-select:none;font-family:var(--gothic);font-size:12px;padding:4px 10px}
+.chip.pick.on{border-color:var(--ember);color:var(--ember);background:rgba(217,160,56,.12)}
+.targetbox{display:grid;grid-template-columns:1fr;gap:14px;border:1px solid var(--line);padding:12px;background:var(--iron-hi)}
+@media(min-width:760px){.targetbox{grid-template-columns:1.5fr 1fr}}
+.tgt-hd{font-family:var(--mincho);font-size:12px;letter-spacing:.18em;color:var(--sand-dim);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+button.mini{appearance:none;background:none;border:1px solid var(--line);color:var(--sand-dim);font-size:10px;padding:1px 7px;cursor:pointer;font-family:var(--gothic)}
+button.mini:hover{border-color:var(--rust);color:#D89A88}
+.chip.tgt{cursor:pointer;user-select:none;font-family:var(--gothic);font-size:11px;padding:3px 8px}
+.chip.tgt.on{border-color:var(--patina);color:#fff;background:rgba(92,138,147,.35)}
+.gridwrap tr.win td.n{background:var(--ember);color:var(--ink);font-weight:700}
+@media(max-width:560px){.stats,.two{grid-template-columns:1fr}}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>狩猟装備台帳</h1>
+  <span class="sub">MHWilds / skill sim + artian table log</span>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tab-art" aria-selected="true" aria-controls="view-art">アーティア工房</button>
+  <button role="tab" id="tab-fut" aria-selected="false" aria-controls="view-fut">未来視テーブル</button>
+  <button role="tab" id="tab-sim" aria-selected="false" aria-controls="view-sim">装備シミュレータ</button>
+</nav>
+
+<main>
+<!-- ================= アーティア工房 ================= -->
+<section id="view-art" role="tabpanel" aria-labelledby="tab-art">
+  <div class="cols">
+    <div>
+      <div class="panel">
+        <h2>作る武器</h2>
+        <div class="two">
+          <div class="slot-row"><label>武器種</label><select id="aType"></select></div>
+          <div class="slot-row"><label>属性</label><select id="aElem"></select></div>
+        </div>
+        <div class="slot-row">
+          <label>パーツの属性一致数</label>
+          <select id="aMatch">
+            <option value="1">1（バラバラ＝無属性になる）</option>
+            <option value="2">2（属性が付く）</option>
+            <option value="3" selected>3（属性増強つき）</option>
+          </select>
+        </div>
+        <div class="two">
+          <div class="slot-row"><label>生産ボーナス：基礎攻撃力増強</label><select id="aPAtk"></select></div>
+          <div class="slot-row"><label>生産ボーナス：会心率増強</label><select id="aPAff"></select></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>復元ボーナス（5枠）</h2>
+        <div id="aRolls"></div>
+        <p class="hint" id="aRollHint"></p>
+      </div>
+
+      <div class="panel">
+        <h2>厳選記録に残す</h2>
+        <div class="two">
+          <div class="slot-row"><label>このテーブルで何本目か</label><input type="number" id="aNth" min="1" step="1" value="1"></div>
+          <div class="slot-row"><label>判定</label><select id="aHit"><option value="0">ハズレ</option><option value="1">当たり</option></select></div>
+        </div>
+        <div class="slot-row"><label>メモ</label><input type="text" id="aMemo" placeholder="例：捨て武器で確認。属性は雷で代用"></div>
+        <div class="btnrow">
+          <button class="act" id="aSave">記録に追加</button>
+          <button class="act" id="aExport">記録を書き出す</button>
+          <button class="act" id="aImport">記録を読み込む</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-result">
+      <div class="tablecard">
+        <div class="lbl">TABLE</div>
+        <div class="val" id="aTableName">—</div>
+        <div class="sub2" id="aTableMates"></div>
+      </div>
+
+      <div class="panel">
+        <h2>仕上がり</h2>
+        <div class="stats" id="aStats"></div>
+        <p class="hint" id="aVariant"></p>
+        <p class="hint" id="aParts"></p>
+        <p class="hint" id="aRec"></p>
+      </div>
+
+      <div class="panel">
+        <h2>このテーブルの記録</h2>
+        <div class="scroll"><div id="aLog"></div></div>
+      </div>
+
+      <div class="panel">
+        <h2>全テーブルの進み具合</h2>
+        <div class="scroll"><div id="aSummary"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 未来視テーブル ================= -->
+<section id="view-fut" role="tabpanel" aria-labelledby="tab-fut" hidden>
+  <div class="panel">
+    <h2>未来視テーブル</h2>
+    <div class="slot-row">
+      <label>並べる武器種（タップで切り替え）</label>
+      <div class="chips" id="fTypeChips"></div>
+      <div class="btnrow" style="margin-top:8px">
+        <button class="act" id="fAll">全部出す</button>
+        <button class="act" id="fNone">全部しまう</button>
+      </div>
+    </div>
+    <div class="slot-row">
+      <label>当たりにするスキル（タップで選ぶ・複数可）</label>
+      <div class="targetbox">
+        <div class="tgt-col">
+          <div class="tgt-hd">シリーズスキル <button class="mini" id="tClrS">解除</button></div>
+          <div class="chips" id="tSeries"></div>
+        </div>
+        <div class="tgt-col">
+          <div class="tgt-hd">グループスキル <button class="mini" id="tClrG">解除</button></div>
+          <div class="chips" id="tGroup"></div>
+        </div>
+      </div>
+      <div class="two" style="margin-top:10px">
+        <div>
+          <label style="display:block;font-size:11px;letter-spacing:.16em;color:var(--sand-dim);margin-bottom:4px">当たりの条件</label>
+          <select id="tMode">
+            <option value="or">どちらか当たればOK</option>
+            <option value="and" selected>シリーズとグループが両方そろったら当たり</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;letter-spacing:.16em;color:var(--sand-dim);margin-bottom:4px">表示</label>
+          <select id="tOnly">
+            <option value="0">全部の行を出す</option>
+            <option value="1">当たりの行だけ出す</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <p class="hint" id="fLegend"></p>
+    <div class="scroll gridwrap"><div id="fGrid"></div></div>
+    <div class="btnrow">
+      <button class="act" id="fAddRow">行を10増やす</button>
+      <button class="act" id="fExport">全部書き出す</button>
+      <button class="act" id="fImport">読み込む</button>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <div class="panel">
+        <h2>Excelから貼り付ける</h2>
+        <div class="slot-row"><label>取り込み先の武器種</label><select id="fTarget"></select></div>
+        <p class="hint">Excelの表をそのままコピーして貼り付けてください。1行が1回分、列は「回数／攻撃／会心／属性／火・水・雷…無」の順で、属性ごとに2列（シリーズとグループ）です。先頭の4列は無くても読めます。×は空欄として扱い、「獄焔蛸」のような略称は正式名に寄せます。シリーズとグループの列が逆でも自動で判定します。</p>
+        <textarea id="fPaste" rows="4" placeholder="ここに貼り付け" style="width:100%;background:var(--ink);color:var(--sand);border:1px solid var(--line);padding:8px;font-family:var(--mono);font-size:12px"></textarea>
+        <div class="btnrow">
+          <button class="act" id="fParse">取り込む</button>
+          <button class="act warn2" id="fClear">この武器種を消す</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h2>当たりだけ抜き出す</h2>
+        <div class="scroll"><div id="fHits"></div></div>
+      </div>
+      <div class="panel">
+        <h2>パーツ残数の目安</h2>
+        <div class="two">
+          <div class="slot-row"><label>攻撃タイプの手持ち</label><input type="number" id="fpA" min="0" step="1" placeholder="145"></div>
+          <div class="slot-row"><label>会心タイプの手持ち</label><input type="number" id="fpB" min="0" step="1" placeholder="176"></div>
+        </div>
+        <p class="hint" id="fPartsOut">1本作るごとにパーツを3個使う前提で、何本目まで回せるかを出します。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 装備シミュレータ ================= -->
+<section id="view-sim" role="tabpanel" aria-labelledby="tab-sim" hidden>
+  <div class="cols">
+    <div>
+      <div class="panel"><h2>装備を選ぶ</h2><div id="equipSlots"></div></div>
+      <div class="panel" id="artianGrant" hidden>
+        <h2>巨戟アーティアの付与スキル</h2>
+        <div class="slot-row"><label>シリーズスキル</label><select id="grantSeries"></select></div>
+        <div class="slot-row"><label>グループスキル</label><select id="grantGroup"></select></div>
+        <p class="hint">巨戟アーティアはシリーズ／グループスキルを1種類ずつ付与でき、素材を使えば何度でも選び直せます。ここでは1部位分としてカウントしています。</p>
+      </div>
+      <div class="panel"><h2>構成の保存</h2>
+        <div class="btnrow">
+          <button class="act" id="expBuild">構成を書き出す</button>
+          <button class="act" id="impBuild">構成を読み込む</button>
+          <button class="act warn2" id="clearBuild">装備を外す</button>
+        </div>
+        <p class="hint">防具データはファイル冒頭の <code>DATA.armors</code> がサンプルのままです。実データに差し替えて使ってください。</p>
+      </div>
+    </div>
+    <div class="col-result">
+      <div class="panel"><h2>武器性能</h2><div class="stats" id="weaponStats"></div></div>
+      <div class="panel"><h2>発動スキル</h2><div id="skillList"></div></div>
+      <div class="panel"><h2>シリーズスキル</h2><div id="seriesList"></div></div>
+      <div class="panel"><h2>グループスキル</h2><div id="groupList"></div></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+/* =====================================================================
+   ARTIAN — 実データ（レア8前提）
+   出典：くろまの娯楽人生！／アルテマ／game8 の検証記事
+   ===================================================================== */
+const ELEMS = ["無属性","火","水","雷","氷","龍","毒","麻痺","睡眠","爆破"];
+
+const ARTIAN = {
+  base:{atk:190, aff:5, slots:"3-3-3", sharp:"白（剣士）"},
+  /* 生産ボーナス／復元ボーナスの1個あたりの効果 */
+  step:{atk:5, aff:5},
+  /* 復元ボーナスの最大付与数 */
+  caps:{"基礎攻撃力強化":5,"会心率強化":3,"属性強化":4,"切れ味強化":2,"装填数強化":2},
+
+  types:{
+    "大剣":            {parts:["刃","刃","筒"], table:"elem", melee:true},
+    "太刀":            {parts:["刃","筒","筒"], table:"elem", melee:true},
+    "片手剣":          {parts:["刃","筒","盤"], table:"elem", melee:true},
+    "双剣":            {parts:["刃","刃","盤"], table:"elem", melee:true},
+    "ハンマー":        {parts:["盤","盤","筒"], table:"elem", melee:true},
+    "狩猟笛":          {parts:["盤","装置","装置"], table:"elem", melee:true},
+    "ランス":          {parts:["刃","盤","盤"], table:"elem", melee:true},
+    "ガンランス":      {parts:["盤","盤","装置"], table:"elem", melee:true},
+    "スラッシュアックス":{parts:["刃","刃","装置"], table:"single", melee:true, elemAlways:true},
+    "チャージアックス":  {parts:["刃","盤","装置"], table:"elem", melee:true},
+    "操虫棍":          {parts:["刃","筒","装置"], table:"elem", melee:true},
+    "ライトボウガン":   {parts:["筒","装置","装置"], table:"single", gun:true},
+    "ヘビィボウガン":   {parts:["盤","筒","装置"], table:"single", gun:true},
+    "弓":              {parts:["筒","筒","装置"], table:"bow"}
+  },
+
+  /* テーブル判定 */
+  tableOf(type, elem){
+    const t=this.types[type]; if(!t) return "—";
+    const short = {"スラッシュアックス":"スラアク","チャージアックス":"チャアク","ライトボウガン":"ライト","ヘビィボウガン":"ヘビィ"}[type] || type;
+    if(t.table==="single") return short+"1";
+    if(t.table==="bow")    return ["無属性","毒","麻痺","睡眠"].includes(elem) ? "弓1" : "弓2";
+    return elem==="無属性" ? short+"1" : short+"2";
+  },
+  /* 同じテーブルになる属性 */
+  mates(type, elem){
+    const me=this.tableOf(type,elem);
+    return ELEMS.filter(e=>this.tableOf(type,e)===me);
+  },
+  /* その武器・属性で付く復元ボーナス */
+  bonusesOf(type, elem){
+    const t=this.types[type]; if(!t) return [];
+    if(t.gun) return ["基礎攻撃力強化","会心率強化","装填数強化"];
+    if(t.table==="bow"){
+      return ["無属性","毒","麻痺","睡眠"].includes(elem)
+        ? ["基礎攻撃力強化","会心率強化"]
+        : ["基礎攻撃力強化","会心率強化","属性強化"];
+    }
+    const list=["基礎攻撃力強化","会心率強化","切れ味強化"];
+    if(t.elemAlways || elem!=="無属性") list.splice(2,0,"属性強化");
+    return list;
+  },
+
+  /* 属性・一致数で変わる武器種固有の仕様 */
+  variants:{
+    "ガンランス":{kind:"砲撃",
+      map:{"無属性":"通常型（砲撃力ふつう）","火":"通常型","水":"放射型","雷":"放射型","氷":"通常型","龍":"放射型","毒":"拡散型","麻痺":"拡散型","睡眠":"通常型","爆破":"拡散型"},
+      note:"砲撃力は無属性以外「やや強い」で固定"},
+    "スラッシュアックス":{kind:"ビン",
+      map:{"無属性":"滅竜ビン","火":"強属性ビン","水":"強属性ビン","雷":"強属性ビン","氷":"強属性ビン","龍":"強属性ビン","毒":"強撃ビン","麻痺":"強撃ビン","睡眠":"強撃ビン","爆破":"強撃ビン"}},
+    "チャージアックス":{kind:"ビン",
+      map:{"無属性":"榴弾ビン","火":"強属性ビン","水":"強属性ビン","雷":"強属性ビン","氷":"強属性ビン","龍":"強属性ビン","毒":"榴弾ビン","麻痺":"榴弾ビン","睡眠":"榴弾ビン","爆破":"榴弾ビン"}},
+    "狩猟笛":{kind:"旋律",
+      map:{"無属性":"パターン3","火":"パターン1","水":"パターン1","雷":"パターン1","氷":"パターン1","龍":"パターン1","毒":"パターン2","麻痺":"パターン2","睡眠":"パターン2","爆破":"パターン2"},
+      note:"パターン1・2の響周波の属性は武器の属性に依存"},
+    "弓":{kind:"ビン",
+      map:{"無属性":"接撃ビン","火":"接撃ビン","水":"接撃ビン","雷":"強撃ビン","氷":"貫通ビン","龍":"強撃ビン","毒":"毒ビン","麻痺":"麻痺ビン","睡眠":"睡眠ビン","爆破":"爆破ビン"},
+      map3:{"毒":"毒ビン＋貫通ビン","麻痺":"麻痺ビン＋貫通ビン","睡眠":"睡眠ビン＋接撃ビン","爆破":"爆破ビン＋強撃ビン"}},
+    "ライトボウガン":{kind:"追加弾（速射可）",
+      map:{"無属性":"なし","火":"火炎弾Lv2(3発)","水":"水冷弾Lv2(3発)","雷":"電撃弾Lv2(3発)","氷":"氷結弾Lv2(3発)","龍":"火炎弾Lv2(1発)＋滅龍弾Lv1(1発)","毒":"水冷弾Lv2(2発)＋毒弾Lv1(2発)","麻痺":"電撃弾Lv2(2発)＋麻痺弾Lv1(2発)","睡眠":"氷結弾Lv2(2発)＋睡眠弾Lv1(2発)","爆破":"火炎弾Lv2(2発)＋徹甲榴弾Lv1(2発)"},
+      map3:{"無属性":"なし","火":"火炎弾Lv2(4発)","水":"水冷弾Lv2(4発)","雷":"電撃弾Lv2(4発)","氷":"氷結弾Lv2(4発)","龍":"火炎弾Lv2(2発)＋滅龍弾Lv1(2発)","毒":"水冷弾Lv2(3発)＋毒弾Lv2(3発)","麻痺":"電撃弾Lv2(3発)＋麻痺弾Lv2(3発)","睡眠":"氷結弾Lv2(3発)＋睡眠弾Lv2(3発)","爆破":"火炎弾Lv2(3発)＋徹甲榴弾Lv2(3発)"}},
+    "ヘビィボウガン":{kind:"追加弾",
+      map:{"無属性":"なし","火":"火炎弾Lv2(5発)","水":"水冷弾Lv2(5発)","雷":"電撃弾Lv2(5発)","氷":"氷結弾Lv2(5発)","龍":"火炎弾Lv2(3発)＋滅龍弾Lv1(1発)","毒":"水冷弾Lv2(4発)＋毒弾Lv1(3発)","麻痺":"電撃弾Lv2(4発)＋麻痺弾Lv1(3発)","睡眠":"氷結弾Lv2(4発)＋睡眠弾Lv1(3発)","爆破":"火炎弾Lv2(4発)＋徹甲榴弾Lv1(2発)"},
+      map3:{"無属性":"なし","火":"火炎弾Lv2(6発)","水":"水冷弾Lv2(6発)","雷":"電撃弾Lv2(6発)","氷":"氷結弾Lv2(6発)","龍":"火炎弾Lv2(4発)＋滅龍弾Lv1(2発)","毒":"水冷弾Lv2(5発)＋毒弾Lv2(4発)","麻痺":"電撃弾Lv2(5発)＋麻痺弾Lv2(4発)","睡眠":"氷結弾Lv2(5発)＋睡眠弾Lv2(4発)","爆破":"火炎弾Lv2(5発)＋徹甲榴弾Lv2(3発)"}}
+  },
+
+  /* 定番の復元構成（目安） */
+  recommend:{
+    "大剣":"基礎攻撃力強化×5、または攻×4＋切れ味×1",
+    "太刀":"基礎攻撃力強化×4＋切れ味強化×1",
+    "片手剣":"攻×4＋切れ味×1、または攻×3＋切れ味×2",
+    "双剣":"切れ味強化×2＋基礎攻撃力強化×3",
+    "ハンマー":"基礎攻撃力強化×4＋切れ味強化×1",
+    "狩猟笛":"基礎攻撃力強化×4＋切れ味強化×1",
+    "ランス":"基礎攻撃力強化×4＋切れ味強化×1",
+    "ガンランス":"基礎攻撃力強化×5",
+    "スラッシュアックス":"基礎攻撃力強化×4＋切れ味強化×1",
+    "チャージアックス":"攻×4＋切れ味×1、または属性×4＋切れ味×1",
+    "操虫棍":"基礎攻撃力強化×4＋切れ味強化×1",
+    "ライトボウガン":"装填数×2＋会心率×2＋基礎攻撃力×1",
+    "ヘビィボウガン":"装填数×2＋会心率×2＋攻×1、または装填数×2＋攻×3",
+    "弓":"基礎攻撃力強化×5、または属性強化×4＋基礎攻撃力強化×1"
+  }
+};
+
+/* =====================================================================
+   シリーズスキル（2部位／4部位）・グループスキル（3部位）— 実データ
+   ===================================================================== */
+const SERIES_SKILLS={
+  "暗器蛸の力":{2:"【蛮勇の食卓Ⅰ】肉などを食べた時、一定時間 基礎攻撃力+15",4:"【蛮勇の食卓Ⅱ】同、基礎攻撃力+30"},
+  "暗黒騎士の証":{2:"【ダークアーツ】赤ゲージがある間、属性攻撃力UP。大剣の溜め斬りが3段階まで強化",4:"【ブラックナイト】特殊アクション「ブラックナイト」が使用可能"},
+  "オメガレゾナンス":{2:"【レゾナンスⅠ】ファー／ニアーが交互に発動し、条件を満たすと攻撃力または会心率UP",4:"【レゾナンスⅡ】Ⅰに加え、シールドオプション／連携プログラムの効果UP"},
+  "海竜の渦雷":{2:"【蒼雷一閃Ⅰ】ダメージ蓄積で追加の雷属性ダメージ＋一定時間 会心率UP",4:"【蒼雷一閃Ⅱ】追加雷ダメージ増、会心率UPの時間延長"},
+  "火竜の力":{2:"【灼熱化Ⅰ】攻撃時、確率で追加の火属性ダメージ",4:"【灼熱化Ⅱ】追加の火属性ダメージが上昇"},
+  "兇爪竜の力":{2:"【連撃強化Ⅰ】「連撃」発動時、時間延長＋基礎攻撃力+8",4:"【連撃強化Ⅱ】さらに延長＋基礎攻撃力+18"},
+  "巨戟龍の黙示録":{2:"【宣戦呼応Ⅰ】大型モンスターが怒ると属性攻撃値が上昇",4:"【宣戦呼応Ⅱ】効果上昇＋一定時間ダメージを防ぐ防壁"},
+  "煌雷竜の力":{2:"【雷々響鳴Ⅰ】「力の解放」の発動時間を少し延長",4:"【雷々響鳴Ⅱ】「力の解放」の発動時間を延長"},
+  "獄焔蛸の反逆":{2:"【恨撃Ⅰ】「逆恨み」発動中、追加で少しダメージ",4:"【恨撃Ⅱ】「逆恨み」発動中、追加でダメージ"},
+  "黒蝕竜の力":{2:"【黒蝕一体Ⅰ】大型モンスターと対峙で狂竜症に感染",4:"【黒蝕一体Ⅱ】同、克服時にさらに攻撃力上昇"},
+  "護鎖刃竜の命脈":{2:"【破壊衝動Ⅰ】傷口を破壊した時、体力が少し回復",4:"【破壊衝動Ⅱ】傷口を破壊した時、体力が回復"},
+  "鎖刃竜の飢餓":{2:"【加速再生Ⅰ】継続して攻撃を当てると体力が少し回復",4:"【加速再生Ⅱ】継続して攻撃を当てると体力が回復"},
+  "千刃竜の闘志":{2:"【千刃の身躱しⅠ】「巧撃」の効果時間を延長。再条件で時間が少し増える",4:"【千刃の身躱しⅡ】再条件を満たしたとき攻撃力が上昇"},
+  "凍峰竜の反逆":{2:"【束縛反攻Ⅰ】拘束・凍結からの回復や鍔迫り合いの後、攻撃力上昇",4:"【束縛反攻Ⅱ】同、攻撃力が大きく上昇"},
+  "波衣竜の守護":{2:"【守護のヴェールⅠ】特殊装具の使用時、一定時間 防御力上昇",4:"【守護のヴェールⅡ】防御力と耐性値が大きく上昇"},
+  "白熾龍の脈動":{2:"【超回復力Ⅰ】赤ゲージが無くてもゆるやかに自動回復",4:"【超回復力Ⅱ】赤ゲージが無くても最大値まで自動回復"},
+  "闢獣の力":{2:"【力自慢Ⅰ】鍔迫り合い／相殺の成功で 基礎攻撃力+10",4:"【力自慢Ⅱ】同、基礎攻撃力+25"},
+  "泡狐竜の力":{2:"【泡沫の舞Ⅰ】泡【大】にならず、回避を重ねると泡【小】に",4:"【泡沫の舞Ⅱ】泡状態の時に回避能力を強化"},
+  "雪獅子の闘志":{2:"【ウォークライⅠ】「雄叫び」で周囲の攻撃力が少し上昇",4:"【ウォークライⅡ】「雄叫び」で周囲の攻撃力が上昇"},
+  "鎧竜の守護":{2:"【無傷の重装Ⅰ】体力最大時、被ダメージ20%軽減",4:"【無傷の重装Ⅱ】体力最大時、被ダメージ35%軽減"},
+  "雷顎竜の闘志":{2:"【無尽蔵Ⅰ】追加のスタミナゲージを得る",4:"【無尽蔵Ⅱ】長い追加のスタミナゲージを得る"},
+  "祝謡の祈り":{2:"【地の恵み【祝謡】Ⅰ】祝謡の儀の期間中、報酬に特別なアイテム",4:"【地の恵み【祝謡】Ⅱ】報酬追加＋攻撃力と防御力が大きく上昇"},
+  "踊火の祈り":{2:"【地の恵み【踊火】Ⅰ】踊火の儀の期間中、報酬に特別なアイテム",4:"【地の恵み【踊火】Ⅱ】報酬追加＋攻撃力と防御力が大きく上昇"},
+  "花舞の祈り":{2:"【地の恵み【花舞】Ⅰ】花舞の儀の期間中、報酬に特別なアイテム",4:"【地の恵み【花舞】Ⅱ】報酬追加＋攻撃力と防御力が大きく上昇"},
+  "夢灯の祈り":{2:"【地の恵み【夢灯】Ⅰ】夢灯の儀の期間中、報酬に特別なアイテム",4:"【地の恵み【夢灯】Ⅱ】報酬追加＋攻撃力と防御力が大きく上昇"}
+};
+const GROUP_SKILLS={
+  "ヌシの魂":{3:"【根性【果敢】】致命的な大ダメージを一度だけ軽減。発動前は攻撃力UP・防御力DOWN、発動後は防御力と耐性値UP"},
+  "ヌシの憤激":{3:"【死中に活】状態異常中、攻撃力が上昇"},
+  "ヌシの誇り":{3:"【激励】旋律など範囲に作用する効果の発動時、一時攻撃力上昇を追加付与"},
+  "拳を極めし者":{3:"【殺意の波動】特殊アクションの威力強化。ドライブインパクトで相殺可能に"},
+  "栄光の誉れ":{3:"【幸運】クエストのターゲット報酬が増える"},
+  "祝祭の巡り":{3:"【剥ぎ取り名人】クエスト中、素材を剥ぎ取れる回数+1"},
+  "毛皮の昂揚":{3:"【不屈】力尽きる度に攻撃力と防御力が上がる（最大2回）"},
+  "毛皮の誘惑":{3:"【陽動】攻撃を当てた時、モンスターの注意をより強く引く"},
+  "鱗重ねの工夫":{3:"【奮起】体力40%以下で、一定時間スタミナ消費量が減少"},
+  "鱗張りの技法":{3:"【乗り名人】モンスターに乗りやすくなり、乗り状態で成功しやすい"},
+  "革細工の滑性":{3:"【滑走強化】スライディング後、一定時間 会心率が上がる"},
+  "革細工の柔性":{3:"【採集の達人】採集が速くなり、採集・剥ぎ取り中にのけぞらない"},
+  "甲虫の擬態":{3:"【忍び歩き】しゃがみ移動が速くなり、大型モンスターに見つかりにくい"},
+  "甲虫の知らせ":{3:"【ハニーハンター】ハチミツの取得数が増える"},
+  "護竜の守り":{3:"【竜都の護り】竜都の跡形で属性・特殊ダメージが軽減される"},
+  "護竜の脈動":{3:"【竜乳活性】竜乳結晶の近くで赤ゲージとスタミナの回復が速くなる"},
+  "先達の導き":{3:"【探索者の幸運】活性化している採集ポイントの発生確率が上がる"}
+};
+const SERIES_NAMES=Object.keys(SERIES_SKILLS);
+const GROUP_NAMES=Object.keys(GROUP_SKILLS);
+/* =====================================================================
+   防具（サンプル。ここを実データに差し替え）
+   ===================================================================== */
+const DATA = {
+  skills:{
+    "攻撃":     {max:5, levels:["攻撃力+3","攻撃力+5","攻撃力+7","攻撃力+8, 会心率+5%","攻撃力+9, 会心率+5%"]},
+    "見切り":   {max:5, levels:["会心率+4%","会心率+8%","会心率+12%","会心率+16%","会心率+20%"]},
+    "超会心":   {max:5, levels:["会心攻撃の倍率+3%","+6%","+9%","+12%","+15%"]},
+    "弱点特効": {max:5, levels:["肉質45以上に会心率+5%","+10%","+15%","+20%","+25%"]},
+    "集中":     {max:3, levels:["ゲージ蓄積速度+5%","+10%","+15%"]},
+    "業物":     {max:3, levels:["斬れ味消費を一定確率で無効","確率上昇","さらに確率上昇"]}
+  },
+  seriesSkills:SERIES_SKILLS,
+  groupSkills:GROUP_SKILLS,
+  weapons:[
+    {name:"サンプル太刀I", atk:190, aff:0, elem:"—", ev:0, slots:[2,1], skills:{"集中":1}},
+    {name:"アーティア太刀（巨戟・レア8）", atk:210, aff:5, elem:"雷", ev:300, slots:[3,3,3], skills:{}, artian:true}
+  ],
+  armors:{
+    head:[{name:"サンプルヘルム",def:60,slots:[2,1],skills:{"攻撃":2},series:"闢獣の力",group:"ヌシの魂"}],
+    body:[{name:"サンプルメイル",def:64,slots:[3],skills:{"見切り":2},series:"闢獣の力",group:""}],
+    arms:[{name:"サンプルアーム",def:58,slots:[1,1],skills:{"弱点特効":1},series:"火竜の力",group:"ヌシの魂"}],
+    waist:[{name:"サンプルコイル",def:58,slots:[2],skills:{"超会心":1},series:"闢獣の力",group:""}],
+    legs:[{name:"サンプルグリーヴ",def:62,slots:[2,1],skills:{"集中":1},series:"闢獣の力",group:"ヌシの誇り"}]
+  },
+  charms:[{name:"攻撃の護石III",skills:{"攻撃":3}},{name:"見切りの護石II",skills:{"見切り":2}}],
+  decos:[
+    {name:"攻撃珠【1】",size:1,skills:{"攻撃":1}},
+    {name:"達人珠【2】",size:2,skills:{"見切り":1}},
+    {name:"痛撃珠【3】",size:3,skills:{"弱点特効":2}},
+    {name:"超心珠【2】",size:2,skills:{"超会心":1}},
+    {name:"匠珠【2】",size:2,skills:{"業物":1}}
+  ]
+};
+
+/* ===================== 道具 ===================== */
+const $=s=>document.querySelector(s);
+const el=(t,a={},...k)=>{const n=document.createElement(t);
+  for(const x in a){ if(x==="class")n.className=a[x]; else n.setAttribute(x,a[x]); }
+  k.flat().forEach(c=>n.appendChild(typeof c==="string"?document.createTextNode(c):c)); return n;};
+const opts=(sel,list,blank=null)=>{sel.innerHTML="";
+  if(blank!==null)sel.appendChild(el("option",{value:""},blank));
+  list.forEach((o,i)=>sel.appendChild(el("option",{value:String(i)},o)));};
+const download=(n,o)=>{const b=new Blob([JSON.stringify(o,null,2)],{type:"application/json"});
+  const a=el("a",{href:URL.createObjectURL(b),download:n});document.body.appendChild(a);a.click();a.remove();};
+const upload=cb=>{const i=el("input",{type:"file",accept:".json"});
+  i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();
+    r.onload=()=>{try{cb(JSON.parse(r.result));}catch(e){alert("読み込めませんでした。JSONの形式を確認してください。");}};r.readAsText(f);};i.click();};
+
+[["tab-art","view-art"],["tab-fut","view-fut"],["tab-sim","view-sim"]].forEach(([t,v],_,all)=>{
+  $("#"+t).onclick=()=>all.forEach(([t2,v2])=>{const on=t2===t;
+    $("#"+t2).setAttribute("aria-selected",String(on));$("#"+v2).hidden=!on;});
+});
+
+/* =====================================================================
+   アーティア工房
+   ===================================================================== */
+const TYPES=Object.keys(ARTIAN.types);
+const art={type:"太刀", elem:"雷", match:3, pAtk:3, pAff:0, rolls:["","","","",""]};
+/* GitHub版にするときは、この records を localStorage に載せ替えると保存が残ります */
+let records=[];
+
+function initArtian(){
+  opts($("#aType"),TYPES); $("#aType").value=String(TYPES.indexOf(art.type));
+  opts($("#aElem"),ELEMS); $("#aElem").value=String(ELEMS.indexOf(art.elem));
+  opts($("#aPAtk"),["0個","1個","2個","3個"]); $("#aPAtk").value=String(art.pAtk);
+  opts($("#aPAff"),["0個","1個","2個","3個"]); $("#aPAff").value=String(art.pAff);
+  $("#aType").onchange=e=>{art.type=TYPES[+e.target.value];art.rolls=["","","","",""];drawArtian();};
+  $("#aElem").onchange=e=>{art.elem=ELEMS[+e.target.value];art.rolls=["","","","",""];drawArtian();};
+  $("#aMatch").onchange=e=>{art.match=+e.target.value;drawArtian();};
+  $("#aPAtk").onchange=e=>{art.pAtk=+e.target.value;if(art.pAtk+art.pAff>3){art.pAff=3-art.pAtk;$("#aPAff").value=String(art.pAff);}drawArtian();};
+  $("#aPAff").onchange=e=>{art.pAff=+e.target.value;if(art.pAtk+art.pAff>3){art.pAtk=3-art.pAff;$("#aPAtk").value=String(art.pAtk);}drawArtian();};
+}
+
+function effElem(){ return art.match>=2 ? art.elem : "無属性"; }
+
+function drawArtian(){
+  const type=art.type, elem=effElem();
+  const table=ARTIAN.tableOf(type,elem);
+  const avail=ARTIAN.bonusesOf(type,elem);
+
+  /* テーブル札 */
+  $("#aTableName").textContent=table;
+  const mates=ARTIAN.mates(type,elem).filter(e=>e!==elem);
+  $("#aTableMates").textContent = mates.length
+    ? "同テーブル＝厳選の捨て武器に使える属性：" + mates.join("・")
+    : "この属性だけが単独テーブルです。捨て武器も同じ属性で作る必要があります。";
+
+  /* 復元ボーナス欄 */
+  const rh=$("#aRolls"); rh.innerHTML="";
+  const used={}; art.rolls.forEach(r=>{if(r)used[r]=(used[r]||0)+1;});
+  art.rolls.forEach((r,i)=>{
+    const row=el("div",{class:"roll"});
+    row.appendChild(el("span",{class:"n"},String(i+1).padStart(2,"0")));
+    const s=el("select"); opts(s,avail,"未強化");
+    s.value = avail.indexOf(r)>=0 ? String(avail.indexOf(r)) : "";
+    s.onchange=ev=>{art.rolls[i]=ev.target.value===""?"":avail[+ev.target.value];drawArtian();};
+    row.appendChild(s); rh.appendChild(row);
+  });
+  const over=Object.keys(used).filter(k=>used[k]>ARTIAN.caps[k]);
+  $("#aRollHint").innerHTML = "上限：" + avail.map(b=>{
+    const n=used[b]||0, cap=ARTIAN.caps[b];
+    return '<span class="cap'+(n>cap?" bad":"")+'">'+b+" "+n+"/"+cap+"</span>";
+  }).join("　") + (over.length?"　※上限を超えた指定があります":"");
+
+  /* 仕上がり */
+  const atkN=(used["基礎攻撃力強化"]||0), affN=(used["会心率強化"]||0);
+  const atk=ARTIAN.base.atk + (art.pAtk+atkN)*ARTIAN.step.atk;
+  const aff=ARTIAN.base.aff + (art.pAff+affN)*ARTIAN.step.aff;
+  const st=$("#aStats"); st.innerHTML="";
+  [["武器種",type],["属性",elem+(art.match===3&&elem!=="無属性"?"（属性増強つき）":"")],
+   ["基礎攻撃力",atk],["会心率",aff+"%"],
+   ["スロット",ARTIAN.base.slots],["復元の使用枠",art.rolls.filter(Boolean).length+" / 5"]]
+   .forEach(([k,v])=>st.appendChild(el("div",{},el("span",{},k),el("b",{class:"big"},String(v)))));
+
+  /* 武器種固有 */
+  const v=ARTIAN.variants[type];
+  if(v){
+    const val=(art.match===3&&v.map3&&v.map3[elem]) ? v.map3[elem] : v.map[elem];
+    $("#aVariant").textContent = v.kind+"：" + val + (v.note?"（"+v.note+"）":"");
+  } else $("#aVariant").textContent="";
+  $("#aParts").textContent="必要パーツ："+ARTIAN.types[type].parts.join("・");
+  $("#aRec").textContent="定番の復元構成："+(ARTIAN.recommend[type]||"—");
+
+  renderLog(table);
+  renderSummary();
+}
+
+function renderLog(table){
+  const host=$("#aLog"); host.innerHTML="";
+  const rows=records.filter(r=>r.table===table).sort((a,b)=>a.nth-b.nth);
+  if(!rows.length){ host.appendChild(el("p",{class:"empty"},"このテーブルの記録はまだありません。捨て武器の結果も残しておくと、何本目で当たりが来たか追えます。")); return; }
+  const t=el("table");
+  t.appendChild(el("tr",{},["本目","属性","復元ボーナス","メモ",""].map(h=>el("th",{},h))));
+  rows.forEach(r=>{
+    const del=el("button",{class:"act warn2",type:"button",style:"padding:1px 7px;font-size:11px"},"削除");
+    del.onclick=()=>{records.splice(records.indexOf(r),1);drawArtian();};
+    t.appendChild(el("tr",{class:r.hit?"hit":""},
+      el("td",{class:"mono"},String(r.nth)), el("td",{},r.elem),
+      el("td",{},r.rolls.join("・")||"—"), el("td",{},r.memo||""), el("td",{},del)));
+  });
+  host.appendChild(t);
+}
+
+function renderSummary(){
+  const host=$("#aSummary"); host.innerHTML="";
+  const g={};
+  records.forEach(r=>{ (g[r.table]=g[r.table]||[]).push(r); });
+  const keys=Object.keys(g).sort();
+  if(!keys.length){ host.appendChild(el("p",{class:"empty"},"記録を追加すると、テーブルごとの進み具合がここに並びます。")); return; }
+  const t=el("table");
+  t.appendChild(el("tr",{},["テーブル","記録数","最後に確認した本数","当たり"].map(h=>el("th",{},h))));
+  keys.forEach(k=>{
+    const rows=g[k], max=Math.max(...rows.map(r=>r.nth));
+    const hits=rows.filter(r=>r.hit).map(r=>r.nth+"本目").join("・")||"—";
+    t.appendChild(el("tr",{}, el("td",{},k), el("td",{class:"mono"},String(rows.length)),
+      el("td",{class:"mono"},max+"本目"), el("td",{},hits)));
+  });
+  host.appendChild(t);
+}
+
+$("#aSave").onclick=()=>{
+  const elem=effElem(), table=ARTIAN.tableOf(art.type,elem);
+  const nth=Number($("#aNth").value||0);
+  if(nth<1) return alert("何本目かを1以上で入れてください。");
+  if(records.some(r=>r.table===table&&r.nth===nth)) {
+    if(!confirm(table+" の "+nth+"本目はすでに記録があります。上書きしますか？")) return;
+    records=records.filter(r=>!(r.table===table&&r.nth===nth));
+  }
+  records.push({table,type:art.type,elem,nth,rolls:art.rolls.filter(Boolean),
+    hit:$("#aHit").value==="1", memo:$("#aMemo").value});
+  $("#aMemo").value=""; $("#aNth").value=String(nth+1);
+  drawArtian();
+};
+$("#aExport").onclick=()=>{ if(!records.length)return alert("記録がまだありません。"); download("artian-log.json",records); };
+$("#aImport").onclick=()=>upload(o=>{ if(!Array.isArray(o))return alert("記録の形式ではありません。"); records=o; drawArtian(); });
+
+/* =====================================================================
+   装備シミュレータ
+   ===================================================================== */
+const PARTS=[
+  {key:"weapon",label:"武器",list:()=>DATA.weapons},
+  {key:"head",label:"頭",list:()=>DATA.armors.head},
+  {key:"body",label:"胴",list:()=>DATA.armors.body},
+  {key:"arms",label:"腕",list:()=>DATA.armors.arms},
+  {key:"waist",label:"腰",list:()=>DATA.armors.waist},
+  {key:"legs",label:"脚",list:()=>DATA.armors.legs},
+  {key:"charm",label:"護石",list:()=>DATA.charms}
+];
+const build={}; PARTS.forEach(p=>build[p.key]={idx:"",decos:[]});
+let grant={series:"",group:""};
+
+function buildEquipUI(){
+  const wrap=$("#equipSlots"); wrap.innerHTML="";
+  PARTS.forEach(p=>{
+    const row=el("div",{class:"slot-row"});
+    row.appendChild(el("label",{},p.label));
+    const sel=el("select"); opts(sel,p.list().map(x=>x.name),"（装備なし）"); sel.value=build[p.key].idx;
+    sel.onchange=()=>{build[p.key]={idx:sel.value,decos:[]};buildEquipUI();recalc();};
+    row.appendChild(sel);
+    const deco=el("div",{class:"decos"}); row.appendChild(deco);
+    const item=p.list()[Number(build[p.key].idx)];
+    if(item&&item.slots){
+      item.slots.forEach((size,si)=>{
+        const ds=el("select"), usable=DATA.decos.filter(d=>d.size<=size);
+        opts(ds,usable.map(d=>d.name),"空きスロ["+size+"]");
+        ds.value=build[p.key].decos[si]??"";
+        ds.onchange=()=>{build[p.key].decos[si]=ds.value;recalc();};
+        deco.appendChild(ds);
+      });
+    }
+    wrap.appendChild(row);
+  });
+  const w=DATA.weapons[Number(build.weapon.idx)];
+  $("#artianGrant").hidden=!(w&&w.artian);
+}
+function currentDecos(pk){
+  const p=PARTS.find(x=>x.key===pk), item=p.list()[Number(build[pk].idx)];
+  if(!item||!item.slots)return [];
+  return item.slots.map((size,si)=>{const v=build[pk].decos[si]; if(v==="")return null;
+    return DATA.decos.filter(d=>d.size<=size)[Number(v)]||null;}).filter(Boolean);
+}
+function recalc(){
+  const totals={},add=o=>{for(const k in o)totals[k]=(totals[k]||0)+o[k];};
+  const sc={},gc={}; let def=0;
+  PARTS.forEach(p=>{
+    const item=p.list()[Number(build[p.key].idx)]; if(!item)return;
+    add(item.skills||{}); currentDecos(p.key).forEach(d=>add(d.skills));
+    if(item.def)def+=item.def;
+    if(item.series)sc[item.series]=(sc[item.series]||0)+1;
+    if(item.group)gc[item.group]=(gc[item.group]||0)+1;
+  });
+  const w=DATA.weapons[Number(build.weapon.idx)];
+  if(w&&w.artian){ if(grant.series)sc[grant.series]=(sc[grant.series]||0)+1;
+                   if(grant.group)gc[grant.group]=(gc[grant.group]||0)+1; }
+  const ws=$("#weaponStats"); ws.innerHTML="";
+  if(w){[["攻撃力",w.atk],["会心率",(w.aff>0?"+":"")+w.aff+"%"],["属性",w.elem+(w.ev?" "+w.ev:"")],
+        ["武器スロット",(w.slots||[]).join("・")||"なし"],["防御力合計",def]]
+        .forEach(([k,v])=>ws.appendChild(el("div",{},el("span",{},k),el("b",{class:"big"},String(v)))));
+  } else ws.appendChild(el("p",{class:"empty"},"武器を選ぶとここに性能が出ます。"));
+
+  const list=$("#skillList"); list.innerHTML="";
+  const names=Object.keys(totals).filter(n=>totals[n]>0).sort((a,b)=>totals[b]-totals[a]);
+  if(!names.length)list.appendChild(el("p",{class:"empty"},"まだスキルはありません。装備か装飾品を選んでください。"));
+  names.forEach(n=>{
+    const d0=DATA.skills[n]||{max:totals[n],levels:[]};
+    const cap=Math.min(totals[n],d0.max), over=totals[n]-cap;
+    const pips=el("div",{class:"pips"});
+    for(let i=0;i<d0.max;i++)pips.appendChild(el("i",{class:"pip"+(i<cap?" on":"")}));
+    for(let i=0;i<over;i++)pips.appendChild(el("i",{class:"pip over"}));
+    const btn=el("button",{class:"nm",type:"button"},n+(over?"（"+over+"過剰）":""));
+    const row=el("div",{class:"skill"},btn,pips,el("span",{class:"lv"},"Lv"+cap+"/"+d0.max));
+    const dd=el("p",{class:"desc",hidden:"hidden"},d0.levels[cap-1]||"効果の説明が未登録です。");
+    btn.onclick=()=>{dd.hidden=!dd.hidden;};
+    list.appendChild(row);list.appendChild(dd);
+  });
+  renderSet($("#seriesList"),DATA.seriesSkills,sc);
+  renderSet($("#groupList"),DATA.groupSkills,gc);
+}
+function renderSet(host,dict,counts){
+  host.innerHTML="";
+  const act=Object.keys(counts).filter(k=>counts[k]>0);
+  if(!act.length){host.appendChild(el("p",{class:"empty"},"該当する装備がありません。"));return;}
+  act.forEach(name=>{
+    const need=Object.keys(dict[name]||{}).map(Number).sort((a,b)=>a-b);
+    const mx=need.length?need[need.length-1]:0, have=counts[name];
+    const box=el("div",{class:"set"});
+    box.appendChild(el("div",{class:"hd"},el("span",{class:"nm2"},name),el("span",{class:"cnt"},have+" / "+mx+"部位")));
+    const m=el("div",{class:"meter"});
+    for(let i=0;i<mx;i++)m.appendChild(el("i",{class:"seg"+(i<have?" fill":"")}));
+    box.appendChild(m);
+    need.forEach(n=>box.appendChild(el("p",{class:"effect"+(have>=n?" active":"")},n+"部位："+dict[name][n])));
+    host.appendChild(box);
+  });
+}
+function initGrant(){
+  opts($("#grantSeries"),Object.keys(DATA.seriesSkills),"付与しない");
+  opts($("#grantGroup"),Object.keys(DATA.groupSkills),"付与しない");
+  $("#grantSeries").onchange=e=>{grant.series=Object.keys(DATA.seriesSkills)[+e.target.value]||"";recalc();};
+  $("#grantGroup").onchange=e=>{grant.group=Object.keys(DATA.groupSkills)[+e.target.value]||"";recalc();};
+}
+$("#expBuild").onclick=()=>download("mhw-build.json",{build,grant});
+$("#impBuild").onclick=()=>upload(o=>{if(!o.build)return alert("構成データが入っていません。");
+  Object.assign(build,o.build);Object.assign(grant,o.grant||{});buildEquipUI();initGrant();recalc();});
+$("#clearBuild").onclick=()=>{PARTS.forEach(p=>build[p.key]={idx:"",decos:[]});grant={series:"",group:""};
+  buildEquipUI();initGrant();recalc();};
+
+/* =====================================================================
+   未来視テーブル（巨戟のシリーズ／グループスキル付与表）
+   futures[武器種][属性] = [{g:"グループ", s:"シリーズ"}, ...]  ← 添字が「回数-1」
+   ===================================================================== */
+const SHEET_ORDER=["火","水","雷","氷","龍","毒","麻痺","睡眠","爆破","無属性"];
+let futures={};
+const fut={picked:["狩猟笛"], target:"狩猟笛", rows:30};
+const want={series:[], group:[], mode:"and", only:false};
+const isBlank=v=>!v||v==="×"||v==="x"||v==="✕"||v==="−"||v==="-";
+
+/* 1マスが当たりかどうか */
+function isWin(cell){
+  if(!cell)return false;
+  const s=!isBlank(cell.g)&&want.series.includes(cell.g);
+  const g=!isBlank(cell.s)&&want.group.includes(cell.s);
+  if(!want.series.length&&!want.group.length)return false;
+  if(want.mode==="and"){
+    if(want.series.length&&want.group.length)return s&&g;
+    return s||g;                       /* 片方しか選んでいなければ、それだけで当たり */
+  }
+  return s||g;
+}
+
+function cellOf(type,elem,i){
+  futures[type]=futures[type]||{};
+  const a=futures[type][elem]=futures[type][elem]||[];
+  return a[i]||(a[i]={g:"",s:""});
+}
+/* 武器種の中で、属性をテーブル単位のブロックにまとめる */
+function blocksOf(type){
+  const out=[];
+  SHEET_ORDER.forEach(e=>{
+    const tn=ARTIAN.tableOf(type,e);
+    const last=out[out.length-1];
+    if(last&&last.table===tn) last.elems.push(e); else out.push({table:tn,elems:[e]});
+  });
+  return out;
+}
+
+function initFut(){
+  const chips=$("#fTypeChips");
+  TYPES.forEach(t=>{
+    const c=el("span",{class:"chip pick"+(fut.picked.includes(t)?" on":""),role:"button",tabindex:"0"},t);
+    const toggle=()=>{
+      const i=fut.picked.indexOf(t);
+      if(i>=0) fut.picked.splice(i,1); else fut.picked.push(t);
+      c.className="chip pick"+(fut.picked.includes(t)?" on":"");
+      drawFut();
+    };
+    c.onclick=toggle;
+    c.onkeydown=ev=>{ if(ev.key===" "||ev.key==="Enter"){ev.preventDefault();toggle();} };
+    chips.appendChild(c);
+  });
+  $("#fAll").onclick=()=>{ fut.picked=TYPES.slice(); refreshChips(); drawFut(); };
+  $("#fNone").onclick=()=>{ fut.picked=[]; refreshChips(); drawFut(); };
+
+  /* 狙うスキルのチップ */
+  const mk=(host,names,bucket)=>{
+    host.innerHTML="";
+    names.forEach(n=>{
+      const c=el("span",{class:"chip tgt"+(want[bucket].includes(n)?" on":""),role:"button",tabindex:"0"},n);
+      const toggle=()=>{
+        const i=want[bucket].indexOf(n);
+        if(i>=0)want[bucket].splice(i,1); else want[bucket].push(n);
+        c.className="chip tgt"+(want[bucket].includes(n)?" on":"");
+        saveLocal(); drawFut();
+      };
+      c.onclick=toggle;
+      c.onkeydown=ev=>{ if(ev.key===" "||ev.key==="Enter"){ev.preventDefault();toggle();} };
+      host.appendChild(c);
+    });
+  };
+  mk($("#tSeries"),SERIES_NAMES,"series");
+  mk($("#tGroup"),GROUP_NAMES,"group");
+  $("#tClrS").onclick=()=>{ want.series=[]; mk($("#tSeries"),SERIES_NAMES,"series"); saveLocal(); drawFut(); };
+  $("#tClrG").onclick=()=>{ want.group=[];  mk($("#tGroup"),GROUP_NAMES,"group");   saveLocal(); drawFut(); };
+  $("#tMode").value=want.mode;
+  $("#tMode").onchange=e=>{ want.mode=e.target.value; saveLocal(); drawFut(); };
+  $("#tOnly").value=want.only?"1":"0";
+  $("#tOnly").onchange=e=>{ want.only=e.target.value==="1"; drawFut(); };
+
+  opts($("#fTarget"),TYPES); $("#fTarget").value=String(TYPES.indexOf(fut.target));
+  $("#fTarget").onchange=e=>{fut.target=TYPES[+e.target.value];};
+  $("#fAddRow").onclick=()=>{fut.rows+=10;drawFut();};
+  $("#fpA").oninput=drawParts; $("#fpB").oninput=drawParts;
+  $("#fParse").onclick=parsePaste;
+  $("#fExport").onclick=()=>{ if(!Object.keys(futures).length)return alert("表がまだ空です。");
+    download("artian-futures.json",{futures,want}); };
+  $("#fImport").onclick=()=>upload(o=>{
+    const f=o.futures||o;               /* 旧形式（表だけ）も読める */
+    if(typeof f!=="object"||Array.isArray(f))return alert("表の形式ではありません。");
+    futures=f;
+    if(o.want){ Object.assign(want,o.want); mk($("#tSeries"),SERIES_NAMES,"series"); mk($("#tGroup"),GROUP_NAMES,"group");
+      $("#tMode").value=want.mode; }
+    saveLocal(); drawFut(); });
+  $("#fClear").onclick=()=>{ if(!confirm(fut.target+"の表を全部消します。よろしいですか？"))return;
+    delete futures[fut.target]; saveLocal(); drawFut(); };
+}
+function refreshChips(){
+  [...$("#fTypeChips").children].forEach((c,i)=>
+    c.className="chip pick"+(fut.picked.includes(TYPES[i])?" on":""));
+}
+
+function drawFut(){
+  const picked=TYPES.filter(t=>fut.picked.includes(t));   /* 常に武器種の並び順で */
+  let maxLen=30;
+  picked.forEach(t=>SHEET_ORDER.forEach(e=>{
+    const a=futures[t]&&futures[t][e]; if(a)maxLen=Math.max(maxLen,a.length);
+  }));
+  fut.rows=Math.max(fut.rows,maxLen);
+
+  const host=$("#fGrid"); host.innerHTML="";
+  if(!picked.length){
+    $("#fLegend").textContent="";
+    host.appendChild(el("p",{class:"empty"},"上のボタンで武器種を選ぶと、ここに表が並びます。"));
+    drawHits(); drawParts(); return;
+  }
+  const nWant=want.series.length+want.group.length;
+  $("#fLegend").textContent =
+    "同じ武器種なら、どの属性を作っても行（生産回数）は一緒に進みます。武器種が違うとカウントは別々です。"+
+    (nWant?"　狙い："+nWant+"件を指定中。":"　狙うスキルを選ぶと、当たりのマスが光ります。");
+
+  const t=el("table");
+
+  /* ヘッダ4段 */
+  const h1=el("tr",{},el("th",{class:"n",rowspan:"4"},"回"));
+  picked.forEach((tp,ti)=>h1.appendChild(el("th",{class:"wtype"+(ti?" typesep":""),colspan:"20"},tp)));
+  t.appendChild(h1);
+
+  const h2=el("tr"), h3=el("tr"), h4=el("tr");
+  picked.forEach((tp,ti)=>{
+    blocksOf(tp).forEach((b,bi)=>{
+      const edge = (bi===0&&ti) ? " typesep" : (bi? " sep":"");
+      h2.appendChild(el("th",{class:"tbl"+edge,colspan:String(b.elems.length*2)},b.table));
+      b.elems.forEach((e,ei)=>{
+        const ed=(bi===0&&ei===0&&ti)?" typesep":((bi&&ei===0)?" sep":"");
+        h3.appendChild(el("th",{class:"elem"+ed,colspan:"2"},e==="無属性"?"無":e));
+        h4.appendChild(el("th",{class:ed.trim()},"シリーズ"));
+        h4.appendChild(el("th",{},"グループ"));
+      });
+    });
+  });
+  t.appendChild(h2); t.appendChild(h3); t.appendChild(h4);
+
+  /* 本体 */
+  let shown=0;
+  for(let i=0;i<fut.rows;i++){
+    /* この行に当たりがあるか */
+    let rowWin=false;
+    picked.forEach(tp=>SHEET_ORDER.forEach(e=>{
+      if(isWin((futures[tp]||{})[e]&&futures[tp][e][i])) rowWin=true;
+    }));
+    if(want.only && !rowWin) continue;
+    shown++;
+
+    const tr=el("tr",{class:rowWin?"win":""},el("td",{class:"n"},String(i+1)));
+    picked.forEach((tp,ti)=>{
+      blocksOf(tp).forEach((b,bi)=>{
+        b.elems.forEach((e,ei)=>{
+          const cur=(futures[tp]&&futures[tp][e]&&futures[tp][e][i])||{g:"",s:""};
+          const cellWin=isWin(cur);
+          const ed=(bi===0&&ei===0&&ti)?"typesep":((bi&&ei===0)?"sep":"");
+          [["g",cur.g,SERIES_NAMES,"series"],["s",cur.s,GROUP_NAMES,"group"]].forEach(([k,v,names,bucket],ki)=>{
+            const sel=el("select",{class:"cell"});
+            sel.appendChild(el("option",{value:""},"×"));
+            names.forEach(n=>sel.appendChild(el("option",{value:n},n)));
+            if(v&&!names.includes(v)) sel.appendChild(el("option",{value:v},v+"（未登録）"));
+            sel.value=v||"";
+            const paint=()=>{
+              const val=sel.value;
+              sel.className="cell"+(val?" filled":"")
+                +((val&&want[bucket].includes(val))?" match":"")
+                +(cellWin?" win":"");
+            };
+            paint();
+            sel.onchange=()=>{ cellOf(tp,e,i)[k]=sel.value; saveLocal(); drawFut(); };
+            tr.appendChild(el("td",{class:(ki===0?ed:"")},sel));
+          });
+        });
+      });
+    });
+    t.appendChild(tr);
+  }
+  if(want.only && !shown){
+    host.appendChild(el("p",{class:"empty"},"狙いに当たる行がまだありません。表を埋めるか、条件をゆるめてみてください。"));
+    drawHits(); drawParts(); return;
+  }
+  host.appendChild(t);
+  drawHits(); drawParts();
+}
+
+function drawHits(){
+  const host=$("#fHits"); host.innerHTML="";
+  const picked=TYPES.filter(t=>fut.picked.includes(t));
+  if(!want.series.length&&!want.group.length){
+    host.appendChild(el("p",{class:"empty"},"上で当たりにするスキルを選ぶと、何回目に出るかがここに並びます。"));
+    return;
+  }
+  const rows=[];
+  picked.forEach(tp=>SHEET_ORDER.forEach(e=>{
+    ((futures[tp]||{})[e]||[]).forEach((c,i)=>{
+      if(isWin(c)) rows.push({t:tp,n:i+1,e,g:c.g,s:c.s});
+    });
+  }));
+  if(!rows.length){ host.appendChild(el("p",{class:"empty"},
+    "その条件に当たる行はまだありません。表を埋めるか、条件をゆるめてみてください。")); return; }
+  rows.sort((a,b)=>a.n-b.n||a.t.localeCompare(b.t));
+  const t=el("table");
+  t.appendChild(el("tr",{},["回","武器種","属性","シリーズ","グループ"].map(h=>el("th",{},h))));
+  rows.forEach(r=>t.appendChild(el("tr",{class:"hit"},
+    el("td",{class:"mono"},String(r.n)), el("td",{},r.t), el("td",{},r.e),
+    el("td",{},r.g||"—"), el("td",{},r.s||"—"))));
+  host.appendChild(t);
+  host.appendChild(el("p",{class:"hint"},"最短は "+rows[0].n+"回目（"+rows[0].t+"・"+rows[0].e+"）です。"));
+}
+
+/* ---------- ブラウザに保存（GitHub Pagesでもそのまま残ります） ---------- */
+const LS_KEY="mhw-artian-v1";
+function saveLocal(){
+  try{ localStorage.setItem(LS_KEY,JSON.stringify({futures,want,picked:fut.picked})); }catch(e){}
+}
+function loadLocal(){
+  try{
+    const raw=localStorage.getItem(LS_KEY); if(!raw)return;
+    const o=JSON.parse(raw);
+    if(o.futures)futures=o.futures;
+    if(o.want)Object.assign(want,o.want);
+    if(Array.isArray(o.picked)&&o.picked.length)fut.picked=o.picked;
+  }catch(e){}
+}
+
+function drawParts(){
+  const a=Number($("#fpA").value||0), b=Number($("#fpB").value||0);
+  if(!a&&!b){ $("#fPartsOut").textContent="1本作るごとにパーツを3個使う前提で、何本目まで回せるかを出します。"; return; }
+  const msg=[];
+  if(a)msg.push("攻撃タイプ "+a+"個 → "+Math.floor(a/3)+"本");
+  if(b)msg.push("会心タイプ "+b+"個 → "+Math.floor(b/3)+"本");
+  $("#fPartsOut").textContent=msg.join(" ／ ")+"（3個で1本の計算）";
+}
+
+/* 略称・表記ゆれ → 正式名 */
+const NAME_ALIAS={
+  "漆黒騎士":"暗黒騎士の証","暗黒騎士":"暗黒騎士の証",
+  "闘獣":"闢獣の力","闢獣":"闢獣の力","ドシャグマ":"闢獣の力",
+  "レゾナンス":"オメガレゾナンス","オメガ":"オメガレゾナンス",
+  "白熾龍":"白熾龍の脈動","波衣竜":"波衣竜の守護","煌雷竜":"煌雷竜の力",
+  "暗器蛸":"暗器蛸の力","猛峰竜":"凍峰竜の反逆","凍峰竜":"凍峰竜の反逆"
+};
+/* 「獄焔蛸」→「獄焔蛸の反逆」のように、略称から正式名を探す */
+function matchName(v,names){
+  const s=(v||"").trim();
+  if(!s||isBlank(s))return "";
+  if(names.includes(s))return s;
+  if(NAME_ALIAS[s]&&names.includes(NAME_ALIAS[s]))return NAME_ALIAS[s];
+  const hit=names.filter(n=>n.includes(s)||s.includes(n));
+  return hit.length===1?hit[0]:s;   /* 一意に決まらなければ原文のまま残す */
+}
+
+function parsePaste(){
+  const raw=$("#fPaste").value; if(!raw.trim())return alert("貼り付ける内容がありません。");
+  const tp=fut.target;
+  const lines=raw.replace(/\r/g,"").split("\n").filter(l=>l.trim());
+  const parsed=[];
+  lines.forEach((line,li)=>{
+    let c=line.split("\t"); if(c.length<20) c=line.split(/\s{2,}|,/);
+    if(c.length<20) return;
+    const off = c.length>=24 ? c.length-20 : 0;   // 先頭の回数・攻撃・会心・属性を読み飛ばす
+    const n = off>0 ? (parseInt(c[0],10)||li+1) : li+1;
+    parsed.push({n, cells:SHEET_ORDER.map((e,ei)=>[ (c[off+ei*2]||"").trim(), (c[off+ei*2+1]||"").trim() ])});
+  });
+  if(!parsed.length)return alert("列が足りないようです。20列以上（属性ごとに2列）が必要です。");
+
+  /* 左右どちらがシリーズかを、名前がどれだけ当たるかで判定 */
+  let hitL=0,hitR=0;
+  parsed.forEach(p=>p.cells.forEach(([a,b])=>{
+    if(!isBlank(a)&&matchName(a,SERIES_NAMES)!==a)hitL++;
+    if(!isBlank(b)&&matchName(b,SERIES_NAMES)!==b)hitR++;
+  }));
+  const swapped = hitR>hitL;
+
+  futures[tp]=futures[tp]||{};
+  SHEET_ORDER.forEach(e=>futures[tp][e]=futures[tp][e]||[]);
+  parsed.forEach(p=>{
+    p.cells.forEach(([a,b],ei)=>{
+      const rawS = swapped ? b : a, rawG = swapped ? a : b;
+      futures[tp][SHEET_ORDER[ei]][p.n-1]={
+        g:matchName(rawS,SERIES_NAMES), s:matchName(rawG,GROUP_NAMES)};
+    });
+  });
+  $("#fPaste").value="";
+  if(!fut.picked.includes(tp)){ fut.picked.push(tp); refreshChips(); }
+  saveLocal(); drawFut();
+  alert(parsed.length+"行を"+tp+"の表に取り込みました。"+
+    (swapped?"（左右の列が入れ替わっていたので合わせました）":""));
+}
+
+/* 起動 */
+loadLocal();
+initArtian(); drawArtian();
+initFut(); drawFut();
+buildEquipUI(); initGrant(); recalc();
+</script>
+</body>
+</html>
