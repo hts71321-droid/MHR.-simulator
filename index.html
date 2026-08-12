@@ -156,7 +156,7 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
   <span class="sub">MHWilds / skill sim + artian table log</span>
   <div class="idbar">
     <span class="lbl">ID</span>
-    <select id="pSel" aria-label="使うIDを選ぶ"></select>
+    <select id="pSel" aria-label="使うIDを選ぶ" title="記録はこの端末のブラウザの中だけに保存されます。外部には送信されません"></select>
     <button class="mini" id="pNew" type="button">新規</button>
     <button class="mini" id="pRen" type="button">名前</button>
     <button class="mini" id="pDup" type="button">複製</button>
@@ -432,7 +432,7 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
           <button class="act" id="impBuild">構成を読み込む</button>
           <button class="act warn2" id="clearBuild">装備を外す</button>
         </div>
-        <p class="hint">防具・装飾品・護石・スキルは実データが入っています。<strong>武器（<code>DATA.weapons</code>）だけはまだサンプル2件</strong>なので、アーティア以外の武器を選ぶ用途にはまだ使えません。</p>
+        <p class="hint"><strong>記録の保存について：</strong>このページで入力した内容は、お使いの端末のブラウザの中だけに保存されます。外部に送信されることはなく、他の人から見られることもありません。逆に、ブラウザの履歴を消すと記録も消えます。別の端末へ移すときや、念のため控えを残したいときは、画面右上の「書出」でJSONに保存し、移動先で「読込」してください。</p>
       </div>
     </div>
     <div class="col-result">
