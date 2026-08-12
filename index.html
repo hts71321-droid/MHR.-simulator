@@ -33,6 +33,7 @@ nav.tabs{display:flex;border-bottom:1px solid var(--line);background:var(--iron)
 nav.tabs button{flex:1;appearance:none;background:none;border:none;border-bottom:2px solid transparent;color:var(--sand-dim);font-family:var(--mincho);font-size:15px;letter-spacing:.2em;padding:13px 4px;cursor:pointer}
 nav.tabs button[aria-selected="true"]{color:var(--sand);border-bottom-color:var(--ember)}
 nav.tabs button:focus-visible{outline:2px solid var(--patina);outline-offset:-2px}
+@media(max-width:620px){nav.tabs button{font-size:12px;letter-spacing:.04em;padding:11px 2px}}
 main{padding:20px;max-width:1180px;margin:0 auto}
 .cols{display:grid;grid-template-columns:1fr;gap:22px}
 @media(min-width:900px){.cols{grid-template-columns:1.05fr 1fr;align-items:start}.col-result{position:sticky;top:16px}}
@@ -116,6 +117,14 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
 .chip.tgt{cursor:pointer;user-select:none;font-family:var(--gothic);font-size:11px;padding:3px 8px}
 .chip.tgt.on{border-color:var(--patina);color:#fff;background:rgba(92,138,147,.35)}
 .gridwrap tr.win td.n{background:var(--ember);color:var(--ink);font-weight:700}
+.gridwrap td.bad{color:#D89A88}
+/* 強化テーブルの当たり条件 */
+.bwant{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.bwant .item{display:flex;align-items:center;gap:6px;border:1px solid var(--line);padding:4px 9px}
+.bwant .item.on{border-color:var(--ember);background:rgba(217,160,56,.10)}
+.bwant .item>span{font-size:12px;color:var(--sand-dim)}
+.bwant .item.on>span{color:var(--ember)}
+.bwant select{width:auto;padding:3px 5px;font-size:12px;background:var(--iron-hi)}
 @media(max-width:560px){.stats,.two{grid-template-columns:1fr}}
 [hidden]{display:none !important}
 </style>
@@ -139,6 +148,7 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
 
 <nav class="tabs" role="tablist">
   <button role="tab" id="tab-art" aria-selected="true" aria-controls="view-art">アーティア工房</button>
+  <button role="tab" id="tab-bst" aria-selected="false" aria-controls="view-bst">強化テーブル</button>
   <button role="tab" id="tab-fut" aria-selected="false" aria-controls="view-fut">未来視テーブル</button>
   <button role="tab" id="tab-sim" aria-selected="false" aria-controls="view-sim">装備シミュレータ</button>
 </nav>
@@ -212,6 +222,55 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
       <div class="panel">
         <h2>全テーブルの進み具合</h2>
         <div class="scroll"><div id="aSummary"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 強化テーブル ================= -->
+<section id="view-bst" role="tabpanel" aria-labelledby="tab-bst" hidden>
+  <div class="panel">
+    <h2>強化テーブル（復元ボーナスの並び）</h2>
+    <div class="two">
+      <div class="slot-row"><label>武器種</label><select id="bType"></select></div>
+      <div class="slot-row"><label>属性</label><select id="bElem"></select></div>
+    </div>
+    <div class="tablecard">
+      <div class="lbl">TABLE</div>
+      <div class="val" id="bTableName">—</div>
+      <div class="sub2" id="bTableMates"></div>
+    </div>
+    <div class="slot-row">
+      <label>当たりにする内訳（この個数以上そろったら当たり）</label>
+      <div class="bwant" id="bWant"></div>
+    </div>
+    <p class="hint" id="bLegend"></p>
+    <div class="scroll gridwrap"><div id="bGrid"></div></div>
+    <div class="btnrow">
+      <button class="act" id="bAddRow">行を10増やす</button>
+      <button class="act warn2" id="bClear">このテーブルを消す</button>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <div class="panel">
+        <h2>Excelから貼り付ける</h2>
+        <p class="hint">Excelの表をそのままコピーして貼り付けてください。1行が1回分で、「1回目／属性強化／切れ味／会心率／会心率／会心率」のように、回数のあとに5枠分が並んでいる形を読みます。回数の列が無ければ、貼り付けた順に1回目から入れます。右側に個数の集計列がついていても無視します。「攻撃力」「会心」「斬れ味」のような書き方でも通ります。</p>
+        <textarea id="bPaste" rows="4" placeholder="ここに貼り付け" style="width:100%;background:var(--ink);color:var(--sand);border:1px solid var(--line);padding:8px;font-family:var(--mono);font-size:12px"></textarea>
+        <div class="btnrow">
+          <button class="act" id="bParse">取り込む</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h2>当たりだけ抜き出す</h2>
+        <div class="scroll"><div id="bHits"></div></div>
+      </div>
+      <div class="panel">
+        <h2>枠ごとの出方</h2>
+        <div class="scroll"><div id="bStat"></div></div>
       </div>
     </div>
   </div>
@@ -527,7 +586,7 @@ const upload=cb=>{const i=el("input",{type:"file",accept:".json"});
   i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();
     r.onload=()=>{try{cb(JSON.parse(r.result));}catch(e){alert("読み込めませんでした。JSONの形式を確認してください。");}};r.readAsText(f);};i.click();};
 
-[["tab-art","view-art"],["tab-fut","view-fut"],["tab-sim","view-sim"]].forEach(([t,v],_,all)=>{
+[["tab-art","view-art"],["tab-bst","view-bst"],["tab-fut","view-fut"],["tab-sim","view-sim"]].forEach(([t,v],_,all)=>{
   $("#"+t).onclick=()=>all.forEach(([t2,v2])=>{const on=t2===t;
     $("#"+t2).setAttribute("aria-selected",String(on));$("#"+v2).hidden=!on;});
 });
@@ -770,6 +829,197 @@ $("#clearBuild").onclick=()=>{PARTS.forEach(p=>build[p.key]={idx:"",decos:[]});g
   buildEquipUI();initGrant();recalc();saveLocal();};
 
 /* =====================================================================
+   強化テーブル（復元ボーナスが何回目にどう並ぶかの調査表）
+   boosts[テーブル名] = [ ["基礎攻撃力強化", …5枠分], … ]  ← 添字が「回数-1」
+   ---------------------------------------------------------------------
+   スキル（シリーズ／グループ）とは別枠の「強化」を記録します。
+   並びはテーブル単位で決まるので、キーは武器種ではなくテーブル名です。
+   ===================================================================== */
+/* 表を詰めて出すための短い呼び名 */
+const BOOST_SHORT={"基礎攻撃力強化":"攻撃力","会心率強化":"会心率","属性強化":"属性強化","切れ味強化":"切れ味","装填数強化":"装填数"};
+/* 貼り付け取り込み用。書き方のゆれを正式名に寄せます */
+const BOOST_ALIAS={};
+[["基礎攻撃力強化",["攻撃力","攻撃","基礎攻撃力","基礎攻撃","攻撃力強化","攻"]],
+ ["会心率強化",   ["会心率","会心","会心率アップ","会"]],
+ ["属性強化",     ["属性","属性値","属性攻撃","属"]],
+ ["切れ味強化",   ["切れ味","斬れ味","斬れ味強化","切"]],
+ ["装填数強化",   ["装填数","装填","装弾数"]]
+].forEach(([full,alts])=>{ BOOST_ALIAS[full]=full; alts.forEach(a=>BOOST_ALIAS[a]=full); });
+
+const boost={type:"太刀", elem:"雷", rows:15};
+let boosts={};   /* テーブル名 → 回数ごとの5枠 */
+let bwant={};    /* 強化名 → 当たりに必要な最低個数 */
+
+const bTable=()=>ARTIAN.tableOf(boost.type,boost.elem);
+const bAvail=()=>ARTIAN.bonusesOf(boost.type,boost.elem);
+/* 読むだけのとき（bRows）は入れ物を作りません。
+   画面を眺めただけで空のテーブルが保存に溜まらないようにするためです。 */
+const bRows =()=>boosts[bTable()]||[];
+const bRowsW=()=>(boosts[bTable()]=boosts[bTable()]||[]);   /* 書き込む用 */
+const bRowAt=i=>{ const a=bRowsW(); return a[i]||(a[i]=["","","","",""]); };
+const bCount=(row,name)=>(row||[]).filter(x=>x===name).length;
+/* 指定した内訳を満たしていれば当たり */
+function bWin(row){
+  const req=bAvail().filter(b=>(bwant[b]||0)>0);
+  if(!req.length) return false;
+  if(!row||!row.some(Boolean)) return false;
+  return req.every(b=>bCount(row,b)>=bwant[b]);
+}
+
+function initBoost(){
+  opts($("#bType"),TYPES); $("#bType").value=String(TYPES.indexOf(boost.type));
+  opts($("#bElem"),ELEMS); $("#bElem").value=String(ELEMS.indexOf(boost.elem));
+  $("#bType").onchange=e=>{boost.type=TYPES[+e.target.value];drawBoost();};
+  $("#bElem").onchange=e=>{boost.elem=ELEMS[+e.target.value];drawBoost();};
+  $("#bAddRow").onclick=()=>{boost.rows+=10;drawBoost();};
+  $("#bClear").onclick=()=>{
+    const t=bTable();
+    if(!confirm(t+" の強化テーブルを全部消します。よろしいですか？"))return;
+    delete boosts[t]; saveLocal(); drawBoost();
+  };
+  $("#bParse").onclick=parseBoostPaste;
+}
+
+function drawBoost(){
+  const table=bTable(), avail=bAvail(), rows=bRows();
+  $("#bTableName").textContent=table;
+  const mates=ARTIAN.mates(boost.type,boost.elem).filter(e=>e!==boost.elem);
+  $("#bTableMates").textContent = mates.length
+    ? "同テーブル＝この並びを共有する属性：" + mates.join("・")
+    : "この属性だけが単独テーブルです。";
+
+  /* 当たり条件 */
+  const wh=$("#bWant"); wh.innerHTML="";
+  avail.forEach(b=>{
+    const n=bwant[b]||0;
+    const item=el("div",{class:"item"+(n>0?" on":"")},el("span",{},BOOST_SHORT[b]||b));
+    const s=el("select",{"aria-label":(BOOST_SHORT[b]||b)+"の最低個数"});
+    const cap=Math.min(5,ARTIAN.caps[b]||5);
+    for(let k=0;k<=cap;k++)s.appendChild(el("option",{value:String(k)},k+"個"));
+    s.value=String(Math.min(n,cap));
+    s.onchange=()=>{ bwant[b]=+s.value; saveLocal(); drawBoost(); };
+    item.appendChild(s); wh.appendChild(item);
+  });
+
+  const req=avail.filter(b=>(bwant[b]||0)>0);
+  const filled=rows.filter(r=>r&&r.some(Boolean)).length;
+  $("#bLegend").textContent =
+    "同じテーブルなら、どの属性で作っても強化の並びは共通です。記録済み "+filled+" 回分。"+
+    (req.length?"　狙い："+req.map(b=>(BOOST_SHORT[b]||b)+bwant[b]+"個以上").join("・")+"。"
+              :"　上で内訳を決めると、当たりの回が光ります。");
+
+  boost.rows=Math.max(boost.rows,rows.length,15);
+
+  const host=$("#bGrid"); host.innerHTML="";
+  const t=el("table");
+  const h=el("tr",{},el("th",{class:"n"},"回"));
+  for(let k=0;k<5;k++)h.appendChild(el("th",{class:"elem"},(k+1)+"枠目"));
+  avail.forEach((b,i)=>h.appendChild(el("th",{class:"tbl"+(i===0?" sep":"")},BOOST_SHORT[b]||b)));
+  t.appendChild(h);
+
+  for(let i=0;i<boost.rows;i++){
+    const row=rows[i]||["","","","",""];
+    const win=bWin(row);
+    const tr=el("tr",{class:win?"win":""},el("td",{class:"n"},String(i+1)));
+    for(let k=0;k<5;k++){
+      const v=row[k]||"";
+      const sel=el("select");
+      sel.appendChild(el("option",{value:""},"×"));
+      avail.forEach(b=>sel.appendChild(el("option",{value:b},BOOST_SHORT[b]||b)));
+      /* このテーブルでは出ないはずの値が入っていても消さずに残す */
+      if(v&&!avail.includes(v))sel.appendChild(el("option",{value:v},(BOOST_SHORT[v]||v)+"（対象外）"));
+      sel.value=v;
+      sel.className="cell"+(v?" filled":"")+(win?" win":"");
+      sel.onchange=()=>{ bRowAt(i)[k]=sel.value; saveLocal(); drawBoost(); };
+      tr.appendChild(el("td",{},sel));
+    }
+    avail.forEach((b,bi)=>{
+      const n=bCount(row,b), cap=ARTIAN.caps[b]||5;
+      tr.appendChild(el("td",{class:"mono"+(bi===0?" sep":"")+(n>cap?" bad":"")},String(n)));
+    });
+    t.appendChild(tr);
+  }
+  host.appendChild(t);
+  drawBoostHits(); drawBoostStat();
+}
+
+function drawBoostHits(){
+  const host=$("#bHits"); host.innerHTML="";
+  const req=bAvail().filter(b=>(bwant[b]||0)>0);
+  if(!req.length){
+    host.appendChild(el("p",{class:"empty"},"上で当たりにする内訳を決めると、何回目に出るかがここに並びます。"));
+    return;
+  }
+  const out=[];
+  bRows().forEach((r,i)=>{ if(bWin(r))out.push({n:i+1,r}); });
+  if(!out.length){
+    host.appendChild(el("p",{class:"empty"},"その内訳に当たる回はまだありません。表を埋めるか、条件をゆるめてみてください。"));
+    return;
+  }
+  const t=el("table");
+  t.appendChild(el("tr",{},["回","1枠目","2枠目","3枠目","4枠目","5枠目"].map(x=>el("th",{},x))));
+  out.forEach(o=>t.appendChild(el("tr",{class:"hit"},
+    el("td",{class:"mono"},String(o.n)),
+    [0,1,2,3,4].map(k=>el("td",{},BOOST_SHORT[o.r[k]]||o.r[k]||"—")))));
+  host.appendChild(t);
+  host.appendChild(el("p",{class:"hint"},"最短は "+out[0].n+"回目です。"));
+}
+
+function drawBoostStat(){
+  const host=$("#bStat"); host.innerHTML="";
+  const avail=bAvail(), rows=bRows().filter(r=>r&&r.some(Boolean));
+  if(!rows.length){
+    host.appendChild(el("p",{class:"empty"},"表を埋めると、どの枠に何が出やすいかがここに集計されます。"));
+    return;
+  }
+  const t=el("table");
+  t.appendChild(el("tr",{},["強化","1枠目","2枠目","3枠目","4枠目","5枠目","合計"].map(x=>el("th",{},x))));
+  avail.forEach(b=>{
+    const per=[0,1,2,3,4].map(k=>rows.filter(r=>r[k]===b).length);
+    t.appendChild(el("tr",{},
+      el("td",{},BOOST_SHORT[b]||b),
+      per.map(n=>el("td",{class:"mono"},String(n))),
+      el("td",{class:"mono"},String(per.reduce((a,c)=>a+c,0)))
+    ));
+  });
+  host.appendChild(t);
+  host.appendChild(el("p",{class:"hint"},"記録した "+rows.length+" 回分の集計です。"));
+}
+
+function parseBoostPaste(){
+  const raw=$("#bPaste").value; if(!raw.trim())return alert("貼り付ける内容がありません。");
+  const avail=bAvail();
+  const lines=raw.replace(/\r/g,"").split("\n").filter(l=>l.trim());
+  let added=0, skipped=0, tooFar=0; const outside=[];
+  lines.forEach((line,li)=>{
+    const c=(line.indexOf("\t")>=0?line.split("\t"):line.split(/\s{2,}|,/)).map(s=>s.trim());
+    /* 強化名として読めるセルを、先頭から5つ拾う */
+    const picks=[];
+    for(const x of c){
+      const b=BOOST_ALIAS[x.replace(/\s/g,"")];
+      if(b){ picks.push(b); if(picks.length===5)break; }
+    }
+    if(!picks.length){ skipped++; return; }
+    /* 回数：「1回目」でも「1」でもよい。無ければ貼った順 */
+    let n=0;
+    for(const x of c){ const m=x.match(/^(\d+)\s*回?目?$/); if(m){ n=+m[1]; break; } }
+    if(!n) n=li+1;
+    if(n>500){ tooFar++; return; }          /* 桁を読み違えたときの暴走よけ */
+    while(picks.length<5)picks.push("");
+    picks.forEach(b=>{ if(b&&!avail.includes(b)&&!outside.includes(b))outside.push(b); });
+    bRowsW()[n-1]=picks; added++;
+  });
+  if(!added)return alert("強化の名前が見つかりませんでした。\n「攻撃力」「会心率」「属性強化」「切れ味」などが入った表を貼り付けてください。");
+  $("#bPaste").value="";
+  saveLocal(); drawBoost();
+  alert(added+"行を "+bTable()+" に取り込みました。"
+    +(skipped?"\n（"+skipped+"行は強化名が見つからなかったので飛ばしました）":"")
+    +(tooFar?"\n（回数が500を超える"+tooFar+"行は飛ばしました）":"")
+    +(outside.length?"\n※このテーブルでは出ないはずの強化が含まれています："
+      +outside.map(b=>BOOST_SHORT[b]||b).join("・")+"\n　武器種と属性の指定が合っているか確かめてください。":""));
+}
+
+/* =====================================================================
    未来視テーブル（巨戟のシリーズ／グループスキル付与表）
    futures[武器種][属性] = [{g:"グループ", s:"シリーズ"}, ...]  ← 添字が「回数-1」
    ===================================================================== */
@@ -1010,7 +1260,7 @@ const readJSON=(k,fb)=>{ try{ const r=localStorage.getItem(k); return r?JSON.par
 const writeJSON=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return false; } };
 
 /* 今の画面の状態をひとまとめにする */
-function snapshot(){ return {futures, want, picked:fut.picked, records, build, grant}; }
+function snapshot(){ return {futures, want, picked:fut.picked, records, build, grant, boosts, bwant}; }
 
 /* 保存されていた状態を画面の変数に戻す（足りない項目は初期値で埋める） */
 function restore(d){
@@ -1026,6 +1276,8 @@ function restore(d){
   if(d.build)for(const k in d.build){ if(build[k]) build[k]={idx:d.build[k].idx||"",decos:(d.build[k].decos||[]).slice()}; }
   grant={series:"",group:""};
   if(d.grant)Object.assign(grant,d.grant);
+  boosts = (d.boosts&&typeof d.boosts==="object"&&!Array.isArray(d.boosts)) ? d.boosts : {};
+  bwant  = (d.bwant &&typeof d.bwant ==="object"&&!Array.isArray(d.bwant))  ? d.bwant  : {};
 }
 
 let saveWarned=false;
@@ -1059,6 +1311,7 @@ function loadLocal(){
 function redrawAll(){
   drawProfileBar();
   drawArtian();
+  boost.rows=15; drawBoost();
   drawWantChips();
   $("#tMode").value=want.mode;
   $("#tOnly").value=want.only?"1":"0";
@@ -1210,6 +1463,7 @@ function parsePaste(){
 loadLocal();
 initProfiles();
 initArtian(); drawArtian();
+initBoost(); drawBoost();
 initFut(); drawFut();
 buildEquipUI(); initGrant(); recalc();
 </script>
