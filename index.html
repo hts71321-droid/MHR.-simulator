@@ -19,6 +19,16 @@ body{background:var(--ink);color:var(--sand);font-family:var(--gothic);font-size
 header{border-bottom:1px solid var(--line);padding:18px 20px 14px;display:flex;flex-wrap:wrap;align-items:baseline;gap:14px}
 header h1{font-family:var(--mincho);font-size:22px;font-weight:600;letter-spacing:.28em;margin:0}
 header .sub{font-size:11px;letter-spacing:.18em;color:var(--sand-dim);font-family:var(--mono)}
+/* ID（プロファイル）切り替えバー */
+.idbar{margin-left:auto;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.idbar>.lbl{font-size:10px;letter-spacing:.24em;color:var(--sand-dim);font-family:var(--mono)}
+.idbar select{width:auto;min-width:130px;max-width:200px;padding:5px 8px;font-size:13px;background:var(--iron)}
+.idbar button.mini{padding:4px 8px;font-size:11px}
+.idbar button.mini:hover{border-color:var(--patina);color:var(--sand)}
+.idbar button.mini.danger:hover{border-color:var(--rust);color:#D89A88}
+.idbar button.mini[disabled]{opacity:.35;cursor:default}
+.idbar button.mini[disabled]:hover{border-color:var(--line);color:var(--sand-dim)}
+@media(max-width:640px){.idbar{margin-left:0;width:100%}.idbar select{flex:1 1 auto;max-width:none}}
 nav.tabs{display:flex;border-bottom:1px solid var(--line);background:var(--iron)}
 nav.tabs button{flex:1;appearance:none;background:none;border:none;border-bottom:2px solid transparent;color:var(--sand-dim);font-family:var(--mincho);font-size:15px;letter-spacing:.2em;padding:13px 4px;cursor:pointer}
 nav.tabs button[aria-selected="true"]{color:var(--sand);border-bottom-color:var(--ember)}
@@ -115,6 +125,16 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
 <header>
   <h1>狩猟装備台帳</h1>
   <span class="sub">MHWilds / skill sim + artian table log</span>
+  <div class="idbar">
+    <span class="lbl">ID</span>
+    <select id="pSel" aria-label="使うIDを選ぶ"></select>
+    <button class="mini" id="pNew" type="button">新規</button>
+    <button class="mini" id="pRen" type="button">名前</button>
+    <button class="mini" id="pDup" type="button">複製</button>
+    <button class="mini danger" id="pDel" type="button">削除</button>
+    <button class="mini" id="pExp" type="button">書出</button>
+    <button class="mini" id="pImp" type="button">読込</button>
+  </div>
 </header>
 
 <nav class="tabs" role="tablist">
@@ -517,7 +537,7 @@ const upload=cb=>{const i=el("input",{type:"file",accept:".json"});
    ===================================================================== */
 const TYPES=Object.keys(ARTIAN.types);
 const art={type:"太刀", elem:"雷", match:3, pAtk:3, pAff:0, rolls:["","","","",""]};
-/* GitHub版にするときは、この records を localStorage に載せ替えると保存が残ります */
+/* 厳選記録。IDごとに localStorage へ保存されます（saveLocal / restore を参照） */
 let records=[];
 
 function initArtian(){
@@ -594,7 +614,7 @@ function renderLog(table){
   t.appendChild(el("tr",{},["本目","属性","復元ボーナス","メモ",""].map(h=>el("th",{},h))));
   rows.forEach(r=>{
     const del=el("button",{class:"act warn2",type:"button",style:"padding:1px 7px;font-size:11px"},"削除");
-    del.onclick=()=>{records.splice(records.indexOf(r),1);drawArtian();};
+    del.onclick=()=>{records.splice(records.indexOf(r),1);saveLocal();drawArtian();};
     t.appendChild(el("tr",{class:r.hit?"hit":""},
       el("td",{class:"mono"},String(r.nth)), el("td",{},r.elem),
       el("td",{},r.rolls.join("・")||"—"), el("td",{},r.memo||""), el("td",{},del)));
@@ -630,10 +650,10 @@ $("#aSave").onclick=()=>{
   records.push({table,type:art.type,elem,nth,rolls:art.rolls.filter(Boolean),
     hit:$("#aHit").value==="1", memo:$("#aMemo").value});
   $("#aMemo").value=""; $("#aNth").value=String(nth+1);
-  drawArtian();
+  saveLocal(); drawArtian();
 };
 $("#aExport").onclick=()=>{ if(!records.length)return alert("記録がまだありません。"); download("artian-log.json",records); };
-$("#aImport").onclick=()=>upload(o=>{ if(!Array.isArray(o))return alert("記録の形式ではありません。"); records=o; drawArtian(); });
+$("#aImport").onclick=()=>upload(o=>{ if(!Array.isArray(o))return alert("記録の形式ではありません。"); records=o; saveLocal(); drawArtian(); });
 
 /* =====================================================================
    装備シミュレータ
@@ -656,7 +676,7 @@ function buildEquipUI(){
     const row=el("div",{class:"slot-row"});
     row.appendChild(el("label",{},p.label));
     const sel=el("select"); opts(sel,p.list().map(x=>x.name),"（装備なし）"); sel.value=build[p.key].idx;
-    sel.onchange=()=>{build[p.key]={idx:sel.value,decos:[]};buildEquipUI();recalc();};
+    sel.onchange=()=>{build[p.key]={idx:sel.value,decos:[]};buildEquipUI();recalc();saveLocal();};
     row.appendChild(sel);
     const deco=el("div",{class:"decos"}); row.appendChild(deco);
     const item=p.list()[Number(build[p.key].idx)];
@@ -665,7 +685,7 @@ function buildEquipUI(){
         const ds=el("select"), usable=DATA.decos.filter(d=>d.size<=size);
         opts(ds,usable.map(d=>d.name),"空きスロ["+size+"]");
         ds.value=build[p.key].decos[si]??"";
-        ds.onchange=()=>{build[p.key].decos[si]=ds.value;recalc();};
+        ds.onchange=()=>{build[p.key].decos[si]=ds.value;recalc();saveLocal();};
         deco.appendChild(ds);
       });
     }
@@ -734,16 +754,20 @@ function renderSet(host,dict,counts){
   });
 }
 function initGrant(){
-  opts($("#grantSeries"),Object.keys(DATA.seriesSkills),"付与しない");
-  opts($("#grantGroup"),Object.keys(DATA.groupSkills),"付与しない");
-  $("#grantSeries").onchange=e=>{grant.series=Object.keys(DATA.seriesSkills)[+e.target.value]||"";recalc();};
-  $("#grantGroup").onchange=e=>{grant.group=Object.keys(DATA.groupSkills)[+e.target.value]||"";recalc();};
+  const sn=Object.keys(DATA.seriesSkills), gn=Object.keys(DATA.groupSkills);
+  opts($("#grantSeries"),sn,"付与しない");
+  opts($("#grantGroup"),gn,"付与しない");
+  /* 保存されていた付与内容をプルダウンに戻す */
+  $("#grantSeries").value = sn.indexOf(grant.series)>=0 ? String(sn.indexOf(grant.series)) : "";
+  $("#grantGroup").value  = gn.indexOf(grant.group) >=0 ? String(gn.indexOf(grant.group))  : "";
+  $("#grantSeries").onchange=e=>{grant.series=sn[+e.target.value]||"";recalc();saveLocal();};
+  $("#grantGroup").onchange=e=>{grant.group=gn[+e.target.value]||"";recalc();saveLocal();};
 }
 $("#expBuild").onclick=()=>download("mhw-build.json",{build,grant});
 $("#impBuild").onclick=()=>upload(o=>{if(!o.build)return alert("構成データが入っていません。");
-  Object.assign(build,o.build);Object.assign(grant,o.grant||{});buildEquipUI();initGrant();recalc();});
+  Object.assign(build,o.build);Object.assign(grant,o.grant||{});buildEquipUI();initGrant();recalc();saveLocal();});
 $("#clearBuild").onclick=()=>{PARTS.forEach(p=>build[p.key]={idx:"",decos:[]});grant={series:"",group:""};
-  buildEquipUI();initGrant();recalc();};
+  buildEquipUI();initGrant();recalc();saveLocal();};
 
 /* =====================================================================
    未来視テーブル（巨戟のシリーズ／グループスキル付与表）
@@ -802,6 +826,37 @@ function initFut(){
   $("#fNone").onclick=()=>{ fut.picked=[]; refreshChips(); drawFut(); };
 
   /* 狙うスキルのチップ */
+  drawWantChips();
+  $("#tClrS").onclick=()=>{ want.series=[]; drawWantChips(); saveLocal(); drawFut(); };
+  $("#tClrG").onclick=()=>{ want.group=[];  drawWantChips(); saveLocal(); drawFut(); };
+  $("#tMode").value=want.mode;
+  $("#tMode").onchange=e=>{ want.mode=e.target.value; saveLocal(); drawFut(); };
+  $("#tOnly").value=want.only?"1":"0";
+  $("#tOnly").onchange=e=>{ want.only=e.target.value==="1"; saveLocal(); drawFut(); };
+
+  opts($("#fTarget"),TYPES); $("#fTarget").value=String(TYPES.indexOf(fut.target));
+  $("#fTarget").onchange=e=>{fut.target=TYPES[+e.target.value];};
+  $("#fAddRow").onclick=()=>{fut.rows+=10;drawFut();};
+  $("#fpA").oninput=drawParts; $("#fpB").oninput=drawParts;
+  $("#fParse").onclick=parsePaste;
+  $("#fExport").onclick=()=>{ if(!Object.keys(futures).length)return alert("表がまだ空です。");
+    download("artian-futures.json",{futures,want}); };
+  $("#fImport").onclick=()=>upload(o=>{
+    const f=o.futures||o;               /* 旧形式（表だけ）も読める */
+    if(typeof f!=="object"||Array.isArray(f))return alert("表の形式ではありません。");
+    futures=f;
+    if(o.want){ Object.assign(want,o.want); drawWantChips();
+      $("#tMode").value=want.mode; }
+    saveLocal(); drawFut(); });
+  $("#fClear").onclick=()=>{ if(!confirm(fut.target+"の表を全部消します。よろしいですか？"))return;
+    delete futures[fut.target]; saveLocal(); drawFut(); };
+}
+function refreshChips(){
+  [...$("#fTypeChips").children].forEach((c,i)=>
+    c.className="chip pick"+(fut.picked.includes(TYPES[i])?" on":""));
+}
+/* 当たりにするスキルのチップを描き直す（ID切り替え・読み込みのあとにも呼ぶ） */
+function drawWantChips(){
   const mk=(host,names,bucket)=>{
     host.innerHTML="";
     names.forEach(n=>{
@@ -819,33 +874,6 @@ function initFut(){
   };
   mk($("#tSeries"),SERIES_NAMES,"series");
   mk($("#tGroup"),GROUP_NAMES,"group");
-  $("#tClrS").onclick=()=>{ want.series=[]; mk($("#tSeries"),SERIES_NAMES,"series"); saveLocal(); drawFut(); };
-  $("#tClrG").onclick=()=>{ want.group=[];  mk($("#tGroup"),GROUP_NAMES,"group");   saveLocal(); drawFut(); };
-  $("#tMode").value=want.mode;
-  $("#tMode").onchange=e=>{ want.mode=e.target.value; saveLocal(); drawFut(); };
-  $("#tOnly").value=want.only?"1":"0";
-  $("#tOnly").onchange=e=>{ want.only=e.target.value==="1"; drawFut(); };
-
-  opts($("#fTarget"),TYPES); $("#fTarget").value=String(TYPES.indexOf(fut.target));
-  $("#fTarget").onchange=e=>{fut.target=TYPES[+e.target.value];};
-  $("#fAddRow").onclick=()=>{fut.rows+=10;drawFut();};
-  $("#fpA").oninput=drawParts; $("#fpB").oninput=drawParts;
-  $("#fParse").onclick=parsePaste;
-  $("#fExport").onclick=()=>{ if(!Object.keys(futures).length)return alert("表がまだ空です。");
-    download("artian-futures.json",{futures,want}); };
-  $("#fImport").onclick=()=>upload(o=>{
-    const f=o.futures||o;               /* 旧形式（表だけ）も読める */
-    if(typeof f!=="object"||Array.isArray(f))return alert("表の形式ではありません。");
-    futures=f;
-    if(o.want){ Object.assign(want,o.want); mk($("#tSeries"),SERIES_NAMES,"series"); mk($("#tGroup"),GROUP_NAMES,"group");
-      $("#tMode").value=want.mode; }
-    saveLocal(); drawFut(); });
-  $("#fClear").onclick=()=>{ if(!confirm(fut.target+"の表を全部消します。よろしいですか？"))return;
-    delete futures[fut.target]; saveLocal(); drawFut(); };
-}
-function refreshChips(){
-  [...$("#fTypeChips").children].forEach((c,i)=>
-    c.className="chip pick"+(fut.picked.includes(TYPES[i])?" on":""));
 }
 
 function drawFut(){
@@ -961,19 +989,156 @@ function drawHits(){
   host.appendChild(el("p",{class:"hint"},"最短は "+rows[0].n+"回目（"+rows[0].t+"・"+rows[0].e+"）です。"));
 }
 
-/* ---------- ブラウザに保存（GitHub Pagesでもそのまま残ります） ---------- */
-const LS_KEY="mhw-artian-v1";
-function saveLocal(){
-  try{ localStorage.setItem(LS_KEY,JSON.stringify({futures,want,picked:fut.picked})); }catch(e){}
+/* =====================================================================
+   ID（プロファイル）ごとの保存
+   ---------------------------------------------------------------------
+   この端末のブラウザの中に、IDごとの引き出しを作って分けて保存します。
+   　LS_ROOT        … IDの一覧と、いま選んでいるID
+   　LS_ROOT+":"+id … そのIDの中身（未来視テーブル・厳選記録・装備構成）
+   IDを1つずつ別のキーに分けているのは、1マス書き換えるたびに全ID分を
+   書き直さずに済ませるためです（表が大きくなっても重くなりません）。
+   ===================================================================== */
+const LS_ROOT="mhw-artian-v2";          /* 保存の形を変えたのでv1から上げています */
+const LS_DATA=id=>LS_ROOT+":"+id;
+const LS_V1="mhw-artian-v1";            /* 旧バージョンの保存先（引き継ぎ用） */
+
+let profiles=[];        /* [{id, name, at}] */
+let currentId="";
+
+const newId=()=>"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const readJSON=(k,fb)=>{ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):fb; }catch(e){ return fb; } };
+const writeJSON=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return false; } };
+
+/* 今の画面の状態をひとまとめにする */
+function snapshot(){ return {futures, want, picked:fut.picked, records, build, grant}; }
+
+/* 保存されていた状態を画面の変数に戻す（足りない項目は初期値で埋める） */
+function restore(d){
+  d=d||{};
+  futures = (d.futures&&typeof d.futures==="object") ? d.futures : {};
+  records = Array.isArray(d.records) ? d.records : [];
+  want.series=[]; want.group=[]; want.mode="and"; want.only=false;
+  if(d.want)Object.assign(want,d.want);
+  if(!Array.isArray(want.series))want.series=[];
+  if(!Array.isArray(want.group))want.group=[];
+  fut.picked = (Array.isArray(d.picked)&&d.picked.length) ? d.picked.slice() : ["狩猟笛"];
+  PARTS.forEach(p=>{ build[p.key]={idx:"",decos:[]}; });
+  if(d.build)for(const k in d.build){ if(build[k]) build[k]={idx:d.build[k].idx||"",decos:(d.build[k].decos||[]).slice()}; }
+  grant={series:"",group:""};
+  if(d.grant)Object.assign(grant,d.grant);
 }
+
+let saveWarned=false;
+function saveLocal(){
+  if(!currentId)return;
+  if(writeJSON(LS_DATA(currentId),snapshot())){ saveWarned=false; return; }
+  if(!saveWarned){ saveWarned=true;
+    alert("保存できませんでした。ブラウザの保存容量がいっぱいかもしれません。\n「書出」でJSONに残してから、使わないIDを削除してみてください。"); }
+}
+function saveProfiles(){ writeJSON(LS_ROOT,{current:currentId,profiles}); }
+
 function loadLocal(){
-  try{
-    const raw=localStorage.getItem(LS_KEY); if(!raw)return;
-    const o=JSON.parse(raw);
-    if(o.futures)futures=o.futures;
-    if(o.want)Object.assign(want,o.want);
-    if(Array.isArray(o.picked)&&o.picked.length)fut.picked=o.picked;
-  }catch(e){}
+  const root=readJSON(LS_ROOT,null);
+  if(root&&Array.isArray(root.profiles)&&root.profiles.length){
+    profiles=root.profiles;
+    currentId = profiles.some(p=>p.id===root.current) ? root.current : profiles[0].id;
+  }else{
+    /* 初回起動。旧バージョン(v1)の保存があれば、そのまま最初のIDに引き継ぎます */
+    const old=readJSON(LS_V1,null);
+    const id=newId();
+    profiles=[{id,name:"ハンター1",at:Date.now()}];
+    currentId=id;
+    if(old)writeJSON(LS_DATA(id),{futures:old.futures||{},want:old.want||{},
+      picked:old.picked||["狩猟笛"],records:[],build:{},grant:{}});
+    saveProfiles();
+  }
+  restore(readJSON(LS_DATA(currentId),null));
+}
+
+/* 画面まるごと描き直す（IDを切り替えたとき用） */
+function redrawAll(){
+  drawProfileBar();
+  drawArtian();
+  drawWantChips();
+  $("#tMode").value=want.mode;
+  $("#tOnly").value=want.only?"1":"0";
+  refreshChips();
+  fut.rows=30; drawFut();
+  buildEquipUI(); initGrant(); recalc();
+}
+
+function drawProfileBar(){
+  const sel=$("#pSel"); sel.innerHTML="";
+  profiles.forEach(p=>sel.appendChild(el("option",{value:p.id},p.name)));
+  sel.value=currentId;
+  $("#pDel").disabled = profiles.length<=1;
+}
+
+/* 今のIDを保存してから、別のIDに移る */
+function gotoProfile(id){
+  currentId=id; saveProfiles();
+  restore(readJSON(LS_DATA(currentId),null));
+  redrawAll();
+}
+
+function initProfiles(){
+  drawProfileBar();
+  $("#pSel").onchange=e=>{ saveLocal(); gotoProfile(e.target.value); };
+
+  $("#pNew").onclick=()=>{
+    const nm=(prompt("新しいIDの名前を入れてください。","ハンター"+(profiles.length+1))||"").trim();
+    if(!nm)return;
+    saveLocal();
+    const id=newId(); profiles.push({id,name:nm,at:Date.now()});
+    currentId=id; saveProfiles();
+    restore(null); saveLocal(); redrawAll();
+  };
+
+  $("#pRen").onclick=()=>{
+    const p=profiles.find(x=>x.id===currentId); if(!p)return;
+    const nm=(prompt("IDの名前を変えます。",p.name)||"").trim();
+    if(!nm)return;
+    p.name=nm; saveProfiles(); drawProfileBar();
+  };
+
+  $("#pDup").onclick=()=>{
+    const p=profiles.find(x=>x.id===currentId); if(!p)return;
+    const nm=(prompt("複製したIDの名前を入れてください。",p.name+"のコピー")||"").trim();
+    if(!nm)return;
+    saveLocal();
+    const id=newId(); profiles.push({id,name:nm,at:Date.now()});
+    writeJSON(LS_DATA(id),readJSON(LS_DATA(p.id),snapshot()));
+    gotoProfile(id);
+  };
+
+  $("#pDel").onclick=()=>{
+    if(profiles.length<=1)return alert("IDが1つしかないので消せません。先に新しいIDを作ってください。");
+    const p=profiles.find(x=>x.id===currentId); if(!p)return;
+    if(!confirm("ID「"+p.name+"」の記録を全部消します。元に戻せません。よろしいですか？"))return;
+    try{ localStorage.removeItem(LS_DATA(p.id)); }catch(e){}
+    profiles=profiles.filter(x=>x.id!==p.id);
+    gotoProfile(profiles[0].id);
+  };
+
+  /* IDまるごとJSONに出す／読む（別の端末へ移すとき用） */
+  $("#pExp").onclick=()=>{
+    saveLocal();
+    const p=profiles.find(x=>x.id===currentId);
+    const nm=p?p.name:"data";
+    download("mhw-id-"+nm+".json",{kind:"mhw-artian-profile",version:2,name:nm,data:snapshot()});
+  };
+  $("#pImp").onclick=()=>upload(o=>{
+    const d=(o&&o.data)?o.data:o;
+    if(!d||typeof d!=="object"||(!d.futures&&!d.records))
+      return alert("IDのデータではないようです。「書出」で作ったJSONを選んでください。");
+    const nm=(prompt("読み込むIDの名前を入れてください。",(o&&o.name)||"読み込んだID")||"").trim();
+    if(!nm)return;
+    saveLocal();
+    const id=newId(); profiles.push({id,name:nm,at:Date.now()});
+    currentId=id; saveProfiles();
+    restore(d); saveLocal(); redrawAll();
+    alert("ID「"+nm+"」として読み込みました。今あるIDは消していません。");
+  });
 }
 
 function drawParts(){
@@ -1043,6 +1208,7 @@ function parsePaste(){
 
 /* 起動 */
 loadLocal();
+initProfiles();
 initArtian(); drawArtian();
 initFut(); drawFut();
 buildEquipUI(); initGrant(); recalc();
