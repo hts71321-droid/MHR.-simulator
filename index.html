@@ -251,7 +251,15 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
 <section id="view-bst" role="tabpanel" aria-labelledby="tab-bst" hidden>
   <div class="panel">
     <h2>強化テーブル（復元ボーナスの並び）</h2>
-    <div class="two">
+    <div class="slot-row">
+      <label>テーブルの分け方</label>
+      <select id="bMode">
+        <option value="elem2">属性 と 無属性 の2つだけ</option>
+        <option value="type">武器種ごとに分ける</option>
+      </select>
+      <p class="hint" id="bModeHint"></p>
+    </div>
+    <div class="two" id="bTypeRow">
       <div class="slot-row"><label>武器種</label><select id="bType"></select></div>
       <div class="slot-row"><label>属性</label><select id="bElem"></select></div>
     </div>
@@ -276,6 +284,10 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
     <div>
       <div class="panel">
         <h2>Excelから貼り付ける</h2>
+        <div class="slot-row" id="bFocusRow">
+          <label>取り込み先・削除の対象</label>
+          <select id="bFocus"></select>
+        </div>
         <p class="hint">Excelの表をそのままコピーして貼り付けてください。1行が1回分で、「1回目／属性強化／切れ味／会心率／会心率／会心率」のように、回数のあとに5枠分が並んでいる形を読みます。回数の列が無ければ、貼り付けた順に1回目から入れます。右側に個数の集計列がついていても無視します。「攻撃力」「会心」「斬れ味」のような書き方でも通ります。</p>
         <textarea id="bPaste" rows="4" placeholder="ここに貼り付け" style="width:100%;background:var(--ink);color:var(--sand);border:1px solid var(--line);padding:8px;font-family:var(--mono);font-size:12px"></textarea>
         <div class="btnrow">
@@ -3735,7 +3747,10 @@ function drawRev(){
    boosts[テーブル名] = [ ["基礎攻撃力強化", …5枠分], … ]  ← 添字が「回数-1」
    ---------------------------------------------------------------------
    スキル（シリーズ／グループ）とは別枠の「強化」を記録します。
-   並びはテーブル単位で決まるので、キーは武器種ではなくテーブル名です。
+   分け方は2通りあり、切り替えられます:
+   　elem2 … 「無属性」「属性」の2テーブルだけ（既定）。武器種が違っても並びは共通
+   　type  … 武器種ごと（太刀2・ライト1 …）。以前の作りで、記録もそのまま残ります
+   キーが別なので、切り替えても互いの記録は消えません。
    ===================================================================== */
 /* 表を詰めて出すための短い呼び名 */
 const BOOST_SHORT={"基礎攻撃力強化":"攻撃力","会心率強化":"会心率","属性強化":"属性強化","切れ味強化":"切れ味","装填数強化":"装填数"};
@@ -3748,34 +3763,59 @@ const BOOST_ALIAS={};
  ["装填数強化",   ["装填数","装填","装弾数"]]
 ].forEach(([full,alts])=>{ BOOST_ALIAS[full]=full; alts.forEach(a=>BOOST_ALIAS[a]=full); });
 
-const boost={type:"太刀", elem:"雷", rows:15};
+/* 2テーブル方式で選べる強化。
+   武器種をまたいで1つの表にするので、近接の「切れ味強化」もボウガンの
+   「装填数強化」も両方入れてあります（自分の武器に出ないものは使わなければ大丈夫です）。 */
+const BOOST_POOL={
+  "無属性":["基礎攻撃力強化","会心率強化","切れ味強化","装填数強化"],
+  "属性":  ["基礎攻撃力強化","会心率強化","属性強化","切れ味強化","装填数強化"]
+};
+
+const boost={mode:"elem2", type:"太刀", elem:"雷", rows:15, focus:"属性"};
 let boosts={};   /* テーブル名 → 回数ごとの5枠 */
 let bwant={};    /* 強化名 → 当たりに必要な最低個数 */
 
-const bTable=()=>ARTIAN.tableOf(boost.type,boost.elem);
-const bAvail=()=>ARTIAN.bonusesOf(boost.type,boost.elem);
-/* 読むだけのとき（bRows）は入れ物を作りません。
-   画面を眺めただけで空のテーブルが保存に溜まらないようにするためです。 */
-const bRows =()=>boosts[bTable()]||[];
-const bRowsW=()=>(boosts[bTable()]=boosts[bTable()]||[]);   /* 書き込む用 */
-const bRowAt=i=>{ const a=bRowsW(); return a[i]||(a[i]=["","","","",""]); };
+/* いま画面に出すテーブルの一覧 */
+const bTablesNow=()=>boost.mode==="elem2" ? ["無属性","属性"]
+                                          : [ARTIAN.tableOf(boost.type,boost.elem)];
+/* そのテーブルで選べる強化 */
+const bAvailFor=t=>boost.mode==="elem2" ? (BOOST_POOL[t]||BOOST_POOL["属性"])
+                                        : ARTIAN.bonusesOf(boost.type,boost.elem);
+/* 当たり条件に並べる強化（表示中のテーブル全部をまとめたもの） */
+function bAllAvail(){
+  const out=[];
+  bTablesNow().forEach(t=>bAvailFor(t).forEach(b=>{ if(!out.includes(b))out.push(b); }));
+  return out;
+}
+/* 読むだけのときは入れ物を作りません（空の表が保存に溜まらないように） */
+const bRowsOf =t=>boosts[t]||[];
+const bRowsWOf=t=>(boosts[t]=boosts[t]||[]);
+const bRowAtOf=(t,i)=>{ const a=bRowsWOf(t); return a[i]||(a[i]=["","","","",""]); };
 const bCount=(row,name)=>(row||[]).filter(x=>x===name).length;
 /* 指定した内訳を満たしていれば当たり */
-function bWin(row){
-  const req=bAvail().filter(b=>(bwant[b]||0)>0);
+function bWin(row,t){
+  const req=bAvailFor(t).filter(b=>(bwant[b]||0)>0);
   if(!req.length) return false;
   if(!row||!row.some(Boolean)) return false;
   return req.every(b=>bCount(row,b)>=bwant[b]);
 }
+/* 操作（貼り付け・削除）の対象テーブル */
+function bFocusTable(){
+  const list=bTablesNow();
+  return list.includes(boost.focus) ? boost.focus : list[0];
+}
 
 function initBoost(){
+  $("#bMode").value=boost.mode;
+  $("#bMode").onchange=e=>{ boost.mode=e.target.value; boost.rows=15; saveLocal(); drawBoost(); };
   opts($("#bType"),TYPES); $("#bType").value=String(TYPES.indexOf(boost.type));
   opts($("#bElem"),ELEMS); $("#bElem").value=String(ELEMS.indexOf(boost.elem));
   $("#bType").onchange=e=>{boost.type=TYPES[+e.target.value];drawBoost();};
   $("#bElem").onchange=e=>{boost.elem=ELEMS[+e.target.value];drawBoost();};
+  $("#bFocus").onchange=e=>{ boost.focus=e.target.value; drawBoost(); };
   $("#bAddRow").onclick=()=>{boost.rows+=10;drawBoost();};
   $("#bClear").onclick=()=>{
-    const t=bTable();
+    const t=bFocusTable();
     if(!confirm(t+" の強化テーブルを全部消します。よろしいですか？"))return;
     delete boosts[t]; saveLocal(); drawBoost();
   };
@@ -3783,16 +3823,32 @@ function initBoost(){
 }
 
 function drawBoost(){
-  const table=bTable(), avail=bAvail(), rows=bRows();
-  $("#bTableName").textContent=table;
-  const mates=ARTIAN.mates(boost.type,boost.elem).filter(e=>e!==boost.elem);
-  $("#bTableMates").textContent = mates.length
-    ? "同テーブル＝この並びを共有する属性：" + mates.join("・")
-    : "この属性だけが単独テーブルです。";
+  const tables=bTablesNow(), two=boost.mode==="elem2";
+
+  /* 分け方まわりの表示 */
+  $("#bTypeRow").hidden = two;
+  $("#bModeHint").textContent = two
+    ? "復元ボーナスの並びは、属性ありか無属性かの2つだけで決まります。武器種が違っても同じ表を使います。"
+    : "武器種ごとに表を分けます。以前の作りで、そのときの記録もこちらに残っています。";
+  $("#bTableName").textContent = two ? "無属性 ／ 属性" : tables[0];
+  if(two){
+    $("#bTableMates").textContent="武器種をまたいで共通の表です。太刀で調べた並びが、大剣でもそのまま使えます。";
+  }else{
+    const mates=ARTIAN.mates(boost.type,boost.elem).filter(e=>e!==boost.elem);
+    $("#bTableMates").textContent = mates.length
+      ? "同テーブル＝この並びを共有する属性：" + mates.join("・")
+      : "この属性だけが単独テーブルです。";
+  }
+
+  /* 操作対象のプルダウン */
+  const fs=$("#bFocus"); fs.innerHTML="";
+  tables.forEach(t=>fs.appendChild(el("option",{value:t},t)));
+  fs.value=bFocusTable();
+  $("#bFocusRow").hidden = tables.length<2;
 
   /* 当たり条件 */
   const wh=$("#bWant"); wh.innerHTML="";
-  avail.forEach(b=>{
+  bAllAvail().forEach(b=>{
     const n=bwant[b]||0;
     const item=el("div",{class:"item"+(n>0?" on":"")},el("span",{},BOOST_SHORT[b]||b));
     const s=el("select",{"aria-label":(BOOST_SHORT[b]||b)+"の最低個数"});
@@ -3803,41 +3859,55 @@ function drawBoost(){
     item.appendChild(s); wh.appendChild(item);
   });
 
-  const req=avail.filter(b=>(bwant[b]||0)>0);
-  const filled=rows.filter(r=>r&&r.some(Boolean)).length;
+  const req=bAllAvail().filter(b=>(bwant[b]||0)>0);
+  const filled=tables.reduce((a,t)=>a+bRowsOf(t).filter(r=>r&&r.some(Boolean)).length,0);
   $("#bLegend").textContent =
-    "同じテーブルなら、どの属性で作っても強化の並びは共通です。記録済み "+filled+" 回分。"+
-    (req.length?"　狙い："+req.map(b=>(BOOST_SHORT[b]||b)+bwant[b]+"個以上").join("・")+"。"
-              :"　上で内訳を決めると、当たりの回が光ります。");
+    (two ? "無属性と属性の2つを横に並べています。" : "同じテーブルなら、どの属性で作っても並びは共通です。")
+    + "記録済み "+filled+" 回分。"
+    + (req.length?"　狙い："+req.map(b=>(BOOST_SHORT[b]||b)+bwant[b]+"個以上").join("・")+"。"
+                :"　上で内訳を決めると、当たりの回が光ります。");
 
-  boost.rows=Math.max(boost.rows,rows.length,15);
+  boost.rows=Math.max(boost.rows, ...tables.map(t=>bRowsOf(t).length), 15);
 
+  /* ---- 表を組み立てる ---- */
   const host=$("#bGrid"); host.innerHTML="";
   const t=el("table");
-  const h=el("tr",{},el("th",{class:"n"},"回"));
-  for(let k=0;k<5;k++)h.appendChild(el("th",{class:"elem"},(k+1)+"枠目"));
-  avail.forEach((b,i)=>h.appendChild(el("th",{class:"tbl"+(i===0?" sep":"")},BOOST_SHORT[b]||b)));
-  t.appendChild(h);
+
+  const h1=el("tr",{},el("th",{class:"n",rowspan:"2"},"回"));
+  tables.forEach((tb,ti)=>h1.appendChild(
+    el("th",{class:"tbl"+(ti?" typesep":""),colspan:String(5+bAvailFor(tb).length)},tb)));
+  t.appendChild(h1);
+
+  const h2=el("tr");
+  tables.forEach((tb,ti)=>{
+    for(let k=0;k<5;k++)h2.appendChild(el("th",{class:"elem"+((ti&&k===0)?" typesep":"")},(k+1)+"枠目"));
+    bAvailFor(tb).forEach((b,i)=>h2.appendChild(el("th",{class:i===0?"sep":""},BOOST_SHORT[b]||b)));
+  });
+  t.appendChild(h2);
 
   for(let i=0;i<boost.rows;i++){
-    const row=rows[i]||["","","","",""];
-    const win=bWin(row);
-    const tr=el("tr",{class:win?"win":""},el("td",{class:"n"},String(i+1)));
-    for(let k=0;k<5;k++){
-      const v=row[k]||"";
-      const sel=el("select");
-      sel.appendChild(el("option",{value:""},"×"));
-      avail.forEach(b=>sel.appendChild(el("option",{value:b},BOOST_SHORT[b]||b)));
-      /* このテーブルでは出ないはずの値が入っていても消さずに残す */
-      if(v&&!avail.includes(v))sel.appendChild(el("option",{value:v},(BOOST_SHORT[v]||v)+"（対象外）"));
-      sel.value=v;
-      sel.className="cell"+(v?" filled":"")+(win?" win":"");
-      sel.onchange=()=>{ bRowAt(i)[k]=sel.value; saveLocal(); drawBoost(); };
-      tr.appendChild(el("td",{},sel));
-    }
-    avail.forEach((b,bi)=>{
-      const n=bCount(row,b), cap=ARTIAN.caps[b]||5;
-      tr.appendChild(el("td",{class:"mono"+(bi===0?" sep":"")+(n>cap?" bad":"")},String(n)));
+    const anyWin=tables.some(tb=>bWin(bRowsOf(tb)[i],tb));
+    const tr=el("tr",{class:anyWin?"win":""},el("td",{class:"n"},String(i+1)));
+    tables.forEach((tb,ti)=>{
+      const avail=bAvailFor(tb);
+      const row=bRowsOf(tb)[i]||["","","","",""];
+      const win=bWin(row,tb);
+      for(let k=0;k<5;k++){
+        const v=row[k]||"";
+        const sel=el("select");
+        sel.appendChild(el("option",{value:""},"×"));
+        avail.forEach(b=>sel.appendChild(el("option",{value:b},BOOST_SHORT[b]||b)));
+        /* このテーブルでは出ないはずの値が入っていても消さずに残す */
+        if(v&&!avail.includes(v))sel.appendChild(el("option",{value:v},(BOOST_SHORT[v]||v)+"（対象外）"));
+        sel.value=v;
+        sel.className="cell"+(v?" filled":"")+(win?" win":"");
+        sel.onchange=()=>{ bRowAtOf(tb,i)[k]=sel.value; saveLocal(); drawBoost(); };
+        tr.appendChild(el("td",{class:(ti&&k===0)?"typesep":""},sel));
+      }
+      avail.forEach((b,bi)=>{
+        const n=bCount(row,b), cap=ARTIAN.caps[b]||5;
+        tr.appendChild(el("td",{class:"mono"+(bi===0?" sep":"")+(n>cap?" bad":"")},String(n)));
+      });
     });
     t.appendChild(tr);
   }
@@ -3847,50 +3917,53 @@ function drawBoost(){
 
 function drawBoostHits(){
   const host=$("#bHits"); host.innerHTML="";
-  const req=bAvail().filter(b=>(bwant[b]||0)>0);
-  if(!req.length){
+  const tables=bTablesNow();
+  if(!bAllAvail().some(b=>(bwant[b]||0)>0)){
     host.appendChild(el("p",{class:"empty"},"上で当たりにする内訳を決めると、何回目に出るかがここに並びます。"));
     return;
   }
   const out=[];
-  bRows().forEach((r,i)=>{ if(bWin(r))out.push({n:i+1,r}); });
+  tables.forEach(tb=>bRowsOf(tb).forEach((r,i)=>{ if(bWin(r,tb))out.push({t:tb,n:i+1,r}); }));
   if(!out.length){
     host.appendChild(el("p",{class:"empty"},"その内訳に当たる回はまだありません。表を埋めるか、条件をゆるめてみてください。"));
     return;
   }
+  out.sort((a,b)=>a.n-b.n || tables.indexOf(a.t)-tables.indexOf(b.t));
   const t=el("table");
-  t.appendChild(el("tr",{},["回","1枠目","2枠目","3枠目","4枠目","5枠目"].map(x=>el("th",{},x))));
+  t.appendChild(el("tr",{},["回","テーブル","1枠目","2枠目","3枠目","4枠目","5枠目"].map(x=>el("th",{},x))));
   out.forEach(o=>t.appendChild(el("tr",{class:"hit"},
-    el("td",{class:"mono"},String(o.n)),
+    el("td",{class:"mono"},String(o.n)), el("td",{},o.t),
     [0,1,2,3,4].map(k=>el("td",{},BOOST_SHORT[o.r[k]]||o.r[k]||"—")))));
   host.appendChild(t);
-  host.appendChild(el("p",{class:"hint"},"最短は "+out[0].n+"回目です。"));
+  host.appendChild(el("p",{class:"hint"},"最短は "+out[0].n+"回目（"+out[0].t+"）です。"));
 }
 
 function drawBoostStat(){
   const host=$("#bStat"); host.innerHTML="";
-  const avail=bAvail(), rows=bRows().filter(r=>r&&r.some(Boolean));
-  if(!rows.length){
-    host.appendChild(el("p",{class:"empty"},"表を埋めると、どの枠に何が出やすいかがここに集計されます。"));
-    return;
-  }
-  const t=el("table");
-  t.appendChild(el("tr",{},["強化","1枠目","2枠目","3枠目","4枠目","5枠目","合計"].map(x=>el("th",{},x))));
-  avail.forEach(b=>{
-    const per=[0,1,2,3,4].map(k=>rows.filter(r=>r[k]===b).length);
-    t.appendChild(el("tr",{},
-      el("td",{},BOOST_SHORT[b]||b),
-      per.map(n=>el("td",{class:"mono"},String(n))),
-      el("td",{class:"mono"},String(per.reduce((a,c)=>a+c,0)))
-    ));
+  let any=false;
+  bTablesNow().forEach(tb=>{
+    const avail=bAvailFor(tb), rows=bRowsOf(tb).filter(r=>r&&r.some(Boolean));
+    if(!rows.length)return;
+    any=true;
+    host.appendChild(el("p",{class:"hint",style:"margin-top:12px"},tb+"（記録 "+rows.length+" 回分）"));
+    const t=el("table");
+    t.appendChild(el("tr",{},["強化","1枠目","2枠目","3枠目","4枠目","5枠目","合計"].map(x=>el("th",{},x))));
+    avail.forEach(b=>{
+      const per=[0,1,2,3,4].map(k=>rows.filter(r=>r[k]===b).length);
+      t.appendChild(el("tr",{},
+        el("td",{},BOOST_SHORT[b]||b),
+        per.map(n=>el("td",{class:"mono"},String(n))),
+        el("td",{class:"mono"},String(per.reduce((a,c)=>a+c,0)))
+      ));
+    });
+    host.appendChild(t);
   });
-  host.appendChild(t);
-  host.appendChild(el("p",{class:"hint"},"記録した "+rows.length+" 回分の集計です。"));
+  if(!any)host.appendChild(el("p",{class:"empty"},"表を埋めると、どの枠に何が出やすいかがここに集計されます。"));
 }
 
 function parseBoostPaste(){
   const raw=$("#bPaste").value; if(!raw.trim())return alert("貼り付ける内容がありません。");
-  const avail=bAvail();
+  const tb=bFocusTable(), avail=bAvailFor(tb);
   const lines=raw.replace(/\r/g,"").split("\n").filter(l=>l.trim());
   let added=0, skipped=0, tooFar=0; const outside=[];
   lines.forEach((line,li)=>{
@@ -3909,16 +3982,16 @@ function parseBoostPaste(){
     if(n>500){ tooFar++; return; }          /* 桁を読み違えたときの暴走よけ */
     while(picks.length<5)picks.push("");
     picks.forEach(b=>{ if(b&&!avail.includes(b)&&!outside.includes(b))outside.push(b); });
-    bRowsW()[n-1]=picks; added++;
+    bRowsWOf(tb)[n-1]=picks; added++;
   });
   if(!added)return alert("強化の名前が見つかりませんでした。\n「攻撃力」「会心率」「属性強化」「切れ味」などが入った表を貼り付けてください。");
   $("#bPaste").value="";
   saveLocal(); drawBoost();
-  alert(added+"行を "+bTable()+" に取り込みました。"
+  alert(added+"行を "+tb+" に取り込みました。"
     +(skipped?"\n（"+skipped+"行は強化名が見つからなかったので飛ばしました）":"")
     +(tooFar?"\n（回数が500を超える"+tooFar+"行は飛ばしました）":"")
     +(outside.length?"\n※このテーブルでは出ないはずの強化が含まれています："
-      +outside.map(b=>BOOST_SHORT[b]||b).join("・")+"\n　武器種と属性の指定が合っているか確かめてください。":""));
+      +outside.map(b=>BOOST_SHORT[b]||b).join("・")+"\n　取り込み先が合っているか確かめてください。":""));
 }
 
 /* =====================================================================
@@ -4162,7 +4235,7 @@ const readJSON=(k,fb)=>{ try{ const r=localStorage.getItem(k); return r?JSON.par
 const writeJSON=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return false; } };
 
 /* 今の画面の状態をひとまとめにする */
-function snapshot(){ return {futures, want, picked:fut.picked, records, build, grant, boosts, bwant, limitOn}; }
+function snapshot(){ return {futures, want, picked:fut.picked, records, build, grant, boosts, bwant, bmode:boost.mode, limitOn}; }
 
 /* 保存されていた状態を画面の変数に戻す（足りない項目は初期値で埋める） */
 function restore(d){
@@ -4185,6 +4258,7 @@ function restore(d){
   grant={series:"",group:""};
   if(d.grant)Object.assign(grant,d.grant);
   limitOn = d.limitOn===true;
+  boost.mode = (d.bmode==="type"||d.bmode==="elem2") ? d.bmode : "elem2";
   boosts = (d.boosts&&typeof d.boosts==="object"&&!Array.isArray(d.boosts)) ? d.boosts : {};
   bwant  = (d.bwant &&typeof d.bwant ==="object"&&!Array.isArray(d.bwant))  ? d.bwant  : {};
 }
@@ -4220,7 +4294,7 @@ function loadLocal(){
 function redrawAll(){
   drawProfileBar();
   drawArtian();
-  boost.rows=15; drawBoost();
+  boost.rows=15; $("#bMode").value=boost.mode; drawBoost();
   drawWantChips();
   $("#tMode").value=want.mode;
   $("#tOnly").value=want.only?"1":"0";
