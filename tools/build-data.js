@@ -74,6 +74,76 @@ J('Amulet.json').forEach(am => (am.ranks || []).forEach(r => {
   charms.push({ name: r.names.ja, rare: r.rarity || 0, skills: sk });
 }));
 
+
+/* ---- 武器 ---- */
+const WKIND = {
+  'great-sword':'大剣','long-sword':'太刀','sword-shield':'片手剣','dual-blades':'双剣',
+  'hammer':'ハンマー','hunting-horn':'狩猟笛','lance':'ランス','gunlance':'ガンランス',
+  'switch-axe':'スラッシュアックス','charge-blade':'チャージアックス','insect-glaive':'操虫棍',
+  'light-bowgun':'ライトボウガン','heavy-bowgun':'ヘビィボウガン','bow':'弓'
+};
+const WFILE = ['GreatSword','LongSword','SwordShield','DualBlades','Hammer','HuntingHorn','Lance',
+               'Gunlance','SwitchAxe','ChargeBlade','InsectGlaive','LightBowgun','HeavyBowgun','Bow'];
+const ELEM_JA = {fire:'火',water:'水',thunder:'雷',ice:'氷',dragon:'龍'};
+const STAT_JA = {poison:'毒',paralysis:'麻痺',sleep:'睡眠',blastblight:'爆破'};
+/* 斬れ味は「一番先まで伸びている色」だけを持ちます（ゲージの絵は描かないので） */
+const SHARP_ORDER = [['purple','紫'],['white','白'],['blue','青'],['green','緑'],['yellow','黄'],['orange','橙'],['red','赤']];
+
+const weapons = [];
+WFILE.forEach(f => {
+  let list; try { list = J('weapons/' + f + '.json'); } catch (e) { warn.push('武器ファイルなし: ' + f); return; }
+  const byId = {}; list.forEach(x => byId[x.game_id] = x);
+  list.forEach(x => {
+    const sk = {};
+    for (const id in (x.skills || {})) { const n = nameOf(id); if (n) sk[n] = x.skills[id]; }
+    let elem = '—', ev = 0;
+    (x.specials || []).forEach(s => {
+      const nm = s.kind === 'element' ? ELEM_JA[s.element] : STAT_JA[s.status];
+      if (!nm) return;
+      elem = elem === '—' ? nm : elem + '・' + nm;
+      ev += s.raw || 0;
+    });
+    let sharp = '';
+    if (x.sharpness) { const hit = SHARP_ORDER.find(([k]) => (x.sharpness[k] || 0) > 0); if (hit) sharp = hit[1]; }
+    /* 強化でスロットが変わるかどうか（前の段階と比べる） */
+    const prev = x.crafting && x.crafting.previous_id ? byId[x.crafting.previous_id] : null;
+    const from = prev && JSON.stringify(prev.slots || []) !== JSON.stringify(x.slots || [])
+      ? { name: prev.names.ja, slots: prev.slots || [] } : null;
+    const w = {
+      name: x.names.ja, type: WKIND[x.kind] || x.kind, rare: x.rarity || 0,
+      atk: x.attack_raw || 0, aff: x.affinity || 0, def: x.defense || 0,
+      elem, ev, slots: x.slots || [], skills: sk
+    };
+    if (sharp) w.sharp = sharp;
+    if (from) w.from = from;
+    weapons.push(w);
+  });
+});
+/* 武器種の並び（ゲーム内の順）を保ったまま、中はレア度の高い順 */
+const typeOrder = Object.values(WKIND);
+weapons.sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type) || b.rare - a.rare);
+
+/* ---- 同じ防具の α / β / γ をひとまとめにした対応表 ----
+   ゲーム内でスロットが変わるのはここです。
+   防具強化（限界突破）で変わるのは防御力だけで、スロットは動きません。
+   例: ダハディラヘルムα[1] / β[2,2] / γ[3,3]
+   variants[部位名] = 同じ名前の別バージョンの配列（自分は含みません） */
+const variants = {};
+{
+  const groups = {};
+  J('Armor.json').forEach(set => (set.pieces || []).forEach(pc => {
+    const m = pc.names.ja.match(/^(.*?)([α-ω])$/);   /* 末尾のギリシャ文字で束ねる */
+    if (!m) return;
+    const key = m[1] + '|' + pc.kind;
+    (groups[key] = groups[key] || []).push(pc.names.ja);
+  }));
+  Object.values(groups).forEach(names => {
+    if (names.length < 2) return;
+    names.sort();
+    names.forEach(n => { variants[n] = names.filter(x => x !== n); });
+  });
+}
+
 /* ---- 並び順：レア度の高い順（同レアは元の並び＝シリーズごとのまとまりを保つ）---- */
 Object.keys(armors).forEach(k => armors[k].sort((a, b) => b.rare - a.rare));
 charms.sort((a, b) => b.rare - a.rare);
@@ -91,9 +161,9 @@ lines.push('  },');
 lines.push('  seriesSkills:SERIES_SKILLS,');
 lines.push('  groupSkills:GROUP_SKILLS,');
 lines.push('  weapons:[');
-lines.push('    {name:"サンプル太刀I", atk:190, aff:0, elem:"—", ev:0, slots:[2,1], skills:{"集中":1}},');
-lines.push('    {name:"アーティア太刀（巨戟・レア8）", atk:210, aff:5, elem:"雷", ev:300, slots:[3,3,3], skills:{}, artian:true}');
+weapons.forEach((w, i, a) => lines.push('    ' + oneLine(w) + (i < a.length - 1 ? ',' : '')));
 lines.push('  ],');
+lines.push('  variants:' + oneLine(variants) + ',');
 lines.push('  armors:{');
 ['head', 'body', 'arms', 'waist', 'legs'].forEach((k, ki) => {
   lines.push('    ' + k + ':[');
@@ -117,6 +187,8 @@ log('防具       :', ['head','body','arms','waist','legs'].map(k => k + ' ' + a
 log('装飾品     :', decos.length, '（武器スロ用', decos.filter(d=>d.on==='weapon').length,
     '／防具スロ用', decos.filter(d=>d.on==='armor').length, '）');
 log('護石       :', charms.length);
+log('武器       :', weapons.length, '（' + typeOrder.length + '武器種）');
+log('α/β/γ対応 :', Object.keys(variants).length, '部位');
 log('生成サイズ :', (lines.join('\n').length / 1024).toFixed(0) + 'KB');
 if (warn.length) { log('\n注意:'); [...new Set(warn)].slice(0, 20).forEach(w => log(' -', w)); }
 
