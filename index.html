@@ -103,6 +103,8 @@ tr.hit td{background:rgba(217,160,56,.12)}
 .cap{font-family:var(--mono);font-size:11px;color:var(--sand-dim);margin-left:6px}
 .cap.bad{color:#D89A88}
 .hint{font-size:12px;color:var(--sand-dim);margin:8px 0 0}
+/* ボタンを押したときの手応え */
+.done{font-size:12px;color:var(--ember);margin:8px 0 0;min-height:1.3em}
 /* 横並び未来視グリッド */
 .gridwrap table{font-size:11px;margin-top:0}
 .gridwrap th,.gridwrap td{padding:2px 4px;text-align:center;white-space:nowrap}
@@ -326,6 +328,20 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
     <div class="btnrow">
       <button class="act" id="rcAdd">この回を記録する</button>
     </div>
+    <p class="done" id="rcDone"></p>
+
+    <h2 style="margin-top:20px">何回目に来たかの一覧</h2>
+    <div class="two">
+      <div class="slot-row"><label>出すもの</label><select id="fHitMode">
+        <option value="all">記録した全部</option>
+        <option value="win">狙いに合うものだけ</option>
+      </select></div>
+      <div class="slot-row"><label>並び順</label><select id="fHitSort">
+        <option value="type">武器種ごと</option>
+        <option value="n">回数の早い順</option>
+      </select></div>
+    </div>
+    <div class="scroll"><div id="fHits"></div></div>
   </div>
 
   <div class="panel">
@@ -390,20 +406,6 @@ button.mini:hover{border-color:var(--rust);color:#D89A88}
       </div>
     </div>
     <div>
-      <div class="panel">
-        <h2>何回目に来たかの一覧</h2>
-        <div class="two">
-          <div class="slot-row"><label>出すもの</label><select id="fHitMode">
-            <option value="win">狙いに合うものだけ</option>
-            <option value="all">記録した全部</option>
-          </select></div>
-          <div class="slot-row"><label>並び順</label><select id="fHitSort">
-            <option value="type">武器種ごと</option>
-            <option value="n">回数の早い順</option>
-          </select></div>
-        </div>
-        <div class="scroll"><div id="fHits"></div></div>
-      </div>
       <div class="panel">
         <h2>パーツ残数の目安</h2>
         <div class="two">
@@ -4157,6 +4159,9 @@ function addRec(){
   rec.nth=n+1; $("#rcNth").value=String(rec.nth);
   if(!fut.picked.includes(rec.type)){ fut.picked.push(rec.type); refreshChips(); }
   saveLocal(); drawFut(); drawRecHint();
+  /* 押したことが分かるように、入れた内容をその場に出します */
+  $("#rcDone").textContent="記録しました：" + rec.type + "・" + rec.elem + " の " + n + "回目 → "
+    + (rec.series||"—") + "／" + (rec.group||"—") + "　（次は " + rec.nth + "回目）";
 }
 
 function refreshChips(){
